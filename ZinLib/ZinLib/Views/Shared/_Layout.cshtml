@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@ViewBag.Title - My ASP.NET Application</title>
-    @Styles.Render("~/Content/css")
-    @Scripts.Render("~/bundles/modernizr")
-
+    @Styles.Render("~/css/layout")
+    @Styles.Render("~/css/plugins")
+    @Styles.Render("~/css/custom")
 </head>
 <body>
     <div class="navbar navbar-inverse navbar-fixed-top">
@@ -37,8 +37,9 @@
         </footer>
     </div>
 
-    @Scripts.Render("~/bundles/jquery")
-    @Scripts.Render("~/bundles/bootstrap")
+    @Scripts.Render("~/js/layout")
+    @Scripts.Render("~/js/plugins")
+    @Scripts.Render("~/js/custom")
     @RenderSection("scripts", required: false)
 </body>
 </html>

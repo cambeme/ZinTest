@@ -1,0 +1,20 @@
+[
+  {
+    "outputFileName": "Assets/css/custom.min.css",
+    "inputFiles": [
+      "Assets/css/custom.css"
+    ]
+  },
+  {
+    "outputFileName": "Assets/js/custom.min.js",
+    "inputFiles": [
+      "Assets/js/custom.js"
+    ]
+  },
+  {
+    "outputFileName": "Assets/js/zinlib.min.js",
+    "inputFiles": [
+      "Assets/js/zinlib.js"
+    ]
+  }
+]
