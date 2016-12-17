@@ -1,9 +1,20 @@
 ﻿// #region global vars
+
 var $linkRoot = window.location.protocol + "//" + location.host;
 var pgurl = window.location.href.substr(window.location.href.lastIndexOf("/") + 1);
-var DynamicSelect2;
+var DynamicSelect2 = 0;
 var CustomSearch = false;
 var TreeAndSelectData = [];
+//var idbAdapter = new LokiIndexedAdapter("loki");
+var db = new loki("TEMP", {
+    autosave: true,
+    autoload: true,
+    //adapter: idbAdapter,
+    autoloadCallback: function () {
+
+    }
+});
+
 // #endregion
 
 // #region document ready
@@ -13,6 +24,15 @@ $(function () {
     $("#dvModalContainer .modal").each(function () {
         $("[id='" + this.id + "']:gt(0)").remove();
     });
+    //cấu hình select2
+    if ($().select2) {
+        $(".select2").select2({ dropdownCssClass: "dynamic-select2", allowClear: false, width: "100%" }).change(function () {
+            var value = this.value;
+            var displayValue = $(this).find('option[value="' + value + '"]').text();
+            $(this).attr('display-value', displayValue);
+        });
+    }
+    //cấu hình datatable
     if ($(".dataTables_filter").length) {
         $(".CreateButton").insertBefore(".dataTables_filter");
     }
@@ -29,7 +49,13 @@ $(function () {
 // #region Thư viện CRUD offline
 
 //Lấy dữ liệu
-function GetItem(objname, modalId) {
+function GetData(objname, modalId) {
+    var treename;
+    if (objname.startsWith("List")) {
+        treename = objname.substring(4);
+    } else {
+        treename = objname;
+    }
     var collection = db.getCollection(objname);
     if (collection === null) {
         var treeData =
@@ -38,73 +64,149 @@ function GetItem(objname, modalId) {
                     text: "Chưa có dữ liệu",
                     type: "root"
                 };
-        $("#tree" + objname).jstree("create_node", null, treeData, "first");
+        $("#tree" + treename).jstree("create_node", null, treeData, "first");
     }
     else {
-        $("#tree" + objname).jstree("delete_node", $("#tree" + objname).jstree().get_json());
+        $("#tree" + treename).jstree("delete_node", $("#tree" + treename).jstree().get_json());
         $.each(collection.find(), function (index, value) {
             var textdata = TextGenerator(modalId, value);
             var treeData =
                 {
-                    id: value.$loki,
+                    id: value.Id,
                     text: textdata,
                     type: "root"
                 };
-            $("#tree" + objname).jstree("create_node", null, treeData, "last");
+            $("#tree" + treename).jstree("create_node", null, treeData, "last");
         });
     }
 }
 
-//Lưu thêm mới
-function SaveAddItem(objname, modalId) {
+//Lưu chọn dữ liệu
+function SaveChooseItem(objname, data) {
     var collection = db.getCollection(objname);
     if (collection === null) {
         collection = db.addCollection(objname);
     }
-    var result = $("#" + modalId + " *").formToJson();
-    try {
-        var inserted = collection.insert(result);
-        var textdata = TextGenerator(modalId, inserted);
-        var treeData =
-            {
-                id: inserted.$loki,
-                text: textdata,
-                type: "root"
-            };
+    var relationship = db.getCollection("Relationship");
+    if (relationship === null) {
+        relationship = db.addCollection("Relationship");
+    }
+    if (!relationship.findOne({ 'name': objname })) {
+        relationship.insert({ name: objname, parent: 0 });
+    }
+    if (!collection.findOne({ 'Id': data.Id })) {
+        $.each(data, function (index, value) {
+            RecursiveData(index, data[index], data.Id, objname);
+        });
+        $.each(data, function (index, value) {
+            if (index.startsWith("List")) {
+                delete data[index];
+            }
+        });
         $("#tree" + objname).jstree("delete_node", "root");
-        $("#tree" + objname).jstree("create_node", null, treeData, "last");
-        alertify.success("tl", "Thêm mới thành công");
-    } catch (err) {
-        alertify.warning("tl", err);
+        try {
+            var inserted = collection.insert(data);
+            var textdata = TextGenerator("mdlChiTiet" + objname, inserted);
+            var treeData =
+                {
+                    id: inserted.Id,
+                    text: textdata,
+                    type: "root"
+                };
+            $("#tree" + objname).jstree("create_node", null, treeData, "last");
+        } catch (err) {
+            alertify.warning("tl", err);
+        }
     }
 }
+
+//Quét đệ quy khi lưu data
+function RecursiveData(name, data, parentId, parentName) {
+    if (name.startsWith("List")) {
+        var collection = db.getCollection(name);
+        var shortname = name.substring(4);
+        if (collection === null) {
+            collection = db.addCollection(name);
+        }
+        var relationship = db.getCollection("Relationship");
+        if (!relationship.findOne({ 'name': name })) {
+            relationship.insert({ name: name, parent: parentName });
+        }
+        //$("#tree" + shortname).jstree("delete_node", $("#tree" + shortname).jstree().get_json());
+        $("#tree" + shortname).jstree("delete_node", "root");
+        $.each(data, function (indexInArray, valueOfElement) {
+            try {
+                valueOfElement.VirtualParent = parentId;
+                var inserted = collection.insert(valueOfElement);
+                var textdata = TextGenerator("mdlChiTiet" + shortname, inserted);
+                var treeData =
+                    {
+                        id: inserted.Id,
+                        data: { VirtualParent: inserted.VirtualParent },
+                        text: textdata,
+                        type: "root"
+                    };
+                $("#tree" + shortname).jstree("create_node", null, treeData, "last");
+            } catch (err) {
+                alertify.warning("tl", err);
+            }
+            $.each(valueOfElement, function (index, value) {
+                RecursiveData(index, valueOfElement[index], valueOfElement.Id, name);
+            });
+        });
+    }
+}
+
+////Lưu thêm mới
+//function SaveAddItem(objname, modalId) {
+//    var collection = db.getCollection(objname);
+//    if (collection === null) {
+//        collection = db.addCollection(objname);
+//    }
+//    var result = $("#" + modalId + " *").formToJson();
+//    try {
+//        var inserted = collection.insert(result);
+//        var textdata = TextGenerator(modalId, inserted);
+//        var treeData =
+//            {
+//                id: inserted.$loki,
+//                text: textdata,
+//                type: "root"
+//            };
+//        $("#tree" + objname).jstree("delete_node", "root");
+//        $("#tree" + objname).jstree("create_node", null, treeData, "last");
+//        alertify.success("tl", "Thêm mới thành công");
+//    } catch (err) {
+//        alertify.warning("tl", err);
+//    }
+//}
 
 //Sửa
-function EditItem(objname, modalId, id) {
-    var collection = db.getCollection(objname);
-    var select = collection.findOne({ '$loki': parseInt(id) });
-    $("#" + modalId + " *").jsonToForm(select);
-}
+//function EditItem(objname, modalId, id) {
+//    var collection = db.getCollection(objname);
+//    var select = collection.findOne({ '$loki': parseInt(id) });
+//    $("#" + modalId + " *").jsonToForm(select);
+//}
 
 //Lưu sửa
-function SaveEditItem(objname, modalId, id) {
-    var collection = db.getCollection(objname);
-    var select = collection.findOne({ '$loki': parseInt(id) });
-    var newData = $("#" + modalId + " *").formToJson();
-    $.each(select, function (index, value) {
-        if (index !== "meta" && index !== "$loki") {
-            select[index] = newData[index];
-        }
-    });
-    try {
-        collection.update(select);
-        var textdata = TextGenerator(modalId, select);
-        $("#tree" + objname).jstree("rename_node", select.$loki, textdata);
-        alertify.success("tl", "Chỉnh sửa thành công");
-    } catch (err) {
-        alertify.warning("tl", err);
-    }
-}
+//function SaveEditItem(objname, modalId, id) {
+//    var collection = db.getCollection(objname);
+//    var select = collection.findOne({ '$loki': parseInt(id) });
+//    var newData = $("#" + modalId + " *").formToJson();
+//    $.each(select, function (index, value) {
+//        if (index !== "meta" && index !== "$loki") {
+//            select[index] = newData[index];
+//        }
+//    });
+//    try {
+//        collection.update(select);
+//        var textdata = TextGenerator(modalId, select);
+//        $("#tree" + objname).jstree("rename_node", select.$loki, textdata);
+//        alertify.success("tl", "Chỉnh sửa thành công");
+//    } catch (err) {
+//        alertify.warning("tl", err);
+//    }
+//}
 
 //Lưu xóa
 function SaveRemoveItem(objname, modalId, id) {
@@ -130,11 +232,16 @@ function TextGenerator(modalId, listValue) {
     });
     var text = "";
     $.each(listLabel, function (index, value) {
+        var textLabel = listLabel[index].label;
+        var textValue = listValue[listLabel[index].name];
+        if (textValue && textValue.toString().includes("/Date(")) {
+            textValue = moment(textValue).format("DD/MM/YYYY");
+        }
         if (index === listLabel.length - 1) {
-            text += listLabel[index].label + ": " + listValue[listLabel[index].name];
+            text += "<b>" + textLabel + "</b>: " + "<b style='color:blue'>" + textValue + "</b>";
         }
         else {
-            text += listLabel[index].label + ": " + listValue[listLabel[index].name] + ", ";
+            text += "<b>" + textLabel + "</b>: " + "<b style='color:blue'>" + textValue + "</b>, ";
         }
     });
     return text;
@@ -400,9 +507,41 @@ function ConvertToObj(array) {
     return thisEleObj;
 }
 
+//chuyển tiếng việt có dấu thành không dấu
+function ConvertToEn(str, options) {
+    var settings = $.extend({
+        lower: false,
+        removespaces: false
+    }, options);
+    if (settings.lower) {
+        str = str.toLowerCase();
+    }
+    // In thường
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    // In hoa
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Á|Ậ|Ẩ|Ẫ|Ă|Ằ|Á|Ặ|Ẳ|Ẵ/g, "a");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "e");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "i");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "o");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "u");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "y");
+    str = str.replace(/Đ/g, "d");
+    if (settings.removespaces) {
+        str = str.replace(/\s/g, "");
+    }
+    return str; // Trả về chuỗi đã chuyển
+}
+
 // #endregion
 
 // #region  self invoked anonymous functions
+
 
 //cấu hình modal
 //modal.[add,edit,remove]("modalId",name);
@@ -531,16 +670,67 @@ var alertify = function () {
             }
         });
     }
+    function AlertifyAlert(mes, options) {
+        var settings = $.extend({}, options);
+        var buttonsList = {};
+        var buttonStyle = loopArr(["primary", "warning", "danger", "default", "success", "info"], { loop: true });
+        $.each(settings, function (index, value) {
+            var indexNew = ConvertToEn(index, { lower: true, removespaces: true });
+            //if (index === Object.keys(settings)[Object.keys(settings).length - 1])
+            buttonsList[indexNew] = { "class": "btn btn-" + buttonStyle.next(), closeOnClick: true, text: index };
+        });
+        Lobibox.alert("info", {
+            msg: mes,
+            title: "Thông báo",
+            //buttons: ['ok', 'cancel', 'yes', 'no'],
+            //Or more powerfull way
+            buttons: buttonsList,
+            callback: function (lobibox, type) {
+                for (key in settings) {
+                    if (type === ConvertToEn(key, { lower: true, removespaces: true })) {
+                        settings[key]();
+                    }
+                }
+            }
+        });
+    }
     return {
-        default: function (pos, mes) { AlertifyNotify("default", pos, mes); },
-        info: function (pos, mes) { AlertifyNotify("info", pos, mes); },
-        warning: function (pos, mes) { AlertifyNotify("warning", pos, mes); },
-        error: function (pos, mes) { AlertifyNotify("error", pos, mes); },
-        success: function (pos, mes) { AlertifyNotify("success", pos, mes); },
-        confirm: function (mes, yescallback, nocallback) { AlertifyConfirm(mes, yescallback, nocallback); }
+        default: function (pos, mes) {
+            AlertifyNotify("default", pos, mes);
+        },
+        info: function (pos, mes) {
+            AlertifyNotify("info", pos, mes);
+        },
+        warning: function (pos, mes) {
+            AlertifyNotify("warning", pos, mes);
+        },
+        error: function (pos, mes) {
+            AlertifyNotify("error", pos, mes);
+        },
+        success: function (pos, mes) {
+            AlertifyNotify("success", pos, mes);
+        },
+        confirm: function (mes, yescallback, nocallback) {
+            AlertifyConfirm(mes, yescallback, nocallback);
+        },
+        alert: function (mes, options) {
+            AlertifyAlert(mes, options);
+        }
     };
 }();
 
+//chuyển mảng thành vòng lặp để lấy giá trị lần lượt hoặc ngẫu nhiên next, prev, cur và ran
+var loopArr = function (arr, options) {
+    var settings = $.extend({
+        loop: false
+    }, options);
+    var cur = 0;
+    arr.next = (function () { return (++cur >= this.length) ? (settings.loop ? this[0] : false) : this[cur]; });
+    arr.prev = (function () { return (--cur < 0) ? false : this[cur]; });
+    arr.cur = (function () { return this[cur]; });
+    arr.ran = (function () { return this[Math.floor(Math.random() * this.length)]; });
+    return arr;
+};
 // #endregion
 
 // #region self invoked anonymous functions with a parameter called "$"
@@ -646,7 +836,7 @@ var alertify = function () {
             checkboxesAsBools: false
         }, options || {});
         var rselectTextarea = /select|textarea/i;
-        var rinput = /text|hidden|password|search/i;
+        var rinput = /text|file|password|search/i;
         return this.map(function () {
             return this.elements ? $.makeArray(this.elements) : this;
         })
@@ -689,8 +879,10 @@ var alertify = function () {
                 else {
                     $(this).prop("checked", dataValue === "true");
                 }
-            }
-            else {
+            } else if (inputType === "file") {
+                $(this).siblings(".fileinput-filename").text(dataValue);
+                $(this).siblings(".fileinput-filename").css({ "display": "block" });
+            } else {
                 $(this).val(dataValue);
             }
         });
@@ -920,7 +1112,7 @@ $("a[data-toggle='tab']").on("shown.bs.tab", function (e) {
 });
 
 //bind select2 events
-$("select").on("select2:open", function (evt) {
+$(document).on("select2:open", ".select2", function (evt) {
     $("body > span > span.dynamic-select2").css("z-index", DynamicSelect2);
 });
 
@@ -1086,11 +1278,10 @@ $(".datetimepicker-to").datetimepicker({
     }
 });
 
-//cấu hình select2
-if ($().select2) {
-    $(".select2").select2({ dropdownCssClass: "dynamic-select2", allowClear: false, width: "100%" });
-}
 //cấu hình datatable
+if ($.fn.dataTable) {
+    $.fn.dataTable.ext.errMode = 'none';
+}
 $("table").css({ "width": "100%" });
 
 // #endregion

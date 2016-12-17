@@ -12,6 +12,7 @@ namespace ZinLib
                         "~/Assets/css/layout.css"));
 
             bundles.Add(new StyleBundle("~/css/plugins").Include(
+                        "~/Assets/plugins/font-awesome/css/font-awesome.min.css",
                         "~/Assets/plugins/jquery-loadingModal/css/jquery.loadingModal.css",
                         "~/Assets/plugins/bootstrap/css/bootstrap.min.css",
                         "~/Assets/plugins/bootstrap/css/bootstrap-theme.min.css",
@@ -45,11 +46,13 @@ namespace ZinLib
                         "~/Assets/plugins/jquery-validation/additional-methods.js",
                         "~/Assets/plugins/jquery-validation/localization/messages_vi.js",
                         "~/Assets/plugins/jquery.mask/jquery.mask.min.js",
-                        "~/Assets/plugins/tinymce/tinymce.min.js"
+                        "~/Assets/plugins/tinymce/tinymce.min.js",
+                        "~/Assets/plugins/lokijs/lokijs.min.js",
+                        "~/Assets/plugins/lokijs/loki-indexed-adapter.min.js"
                     ));
 
             bundles.Add(new StyleBundle("~/js/custom").Include(
-                        "~/Assets/js/zinlib.min.js",
+                        "~/Assets/js/zinlib.js",
                         "~/Assets/js/custom.min.js"
                     ));
 
