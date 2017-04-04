@@ -12,6 +12,8 @@ namespace ZinLib
                         "~/Assets/css/layout.css"));
 
             bundles.Add(new StyleBundle("~/css/plugins").Include(
+                        "~/Assets/plugins/awesome-bootstrap-checkbox/awesome-bootstrap-checkbox.css",
+                        "~/Assets/css/fonts-open-sans.css",
                         "~/Assets/plugins/font-awesome/css/font-awesome.min.css",
                         "~/Assets/plugins/jquery-loadingModal/css/jquery.loadingModal.css",
                         "~/Assets/plugins/bootstrap/css/bootstrap.min.css",
@@ -21,7 +23,11 @@ namespace ZinLib
                         "~/Assets/plugins/jquery-ui-timepicker-addon/jquery-ui-timepicker-addon.min.css",
                         "~/Assets/plugins/select2/css/select2.min.css",
                         "~/Assets/plugins/lobibox/css/lobibox.min.css",
-                        "~/Assets/plugins/jstree/themes/default/style.min.css"
+                        "~/Assets/plugins/jstree/themes/proton/style.min.css",
+                        "~/Assets/plugins/SmartWizard/css/smart_wizard.css",
+                        "~/Assets/plugins/SmartWizard/css/smart_wizard_theme_dots.css",
+                        "~/Assets/plugins/tooltipster/css/tooltipster.bundle.min.css",
+                        "~/Assets/plugins/tooltipster/css/plugins/tooltipster/sideTip/themes/tooltipster-sideTip-shadow.min.css"
                     ));
 
             bundles.Add(new StyleBundle("~/css/custom").Include(
@@ -42,12 +48,16 @@ namespace ZinLib
                         "~/Assets/plugins/select2/js/i18n/vi.js",
                         "~/Assets/plugins/lobibox/js/lobibox.min.js",
                         "~/Assets/plugins/jstree/jstree.min.js",
+                        "~/Assets/plugins/SmartWizard/js/jquery.smartWizard.min.js",
+                        "~/Assets/plugins/tooltipster/js/tooltipster.bundle.min.js",
                         "~/Assets/plugins/jquery-validation/jquery.validate.js",
                         "~/Assets/plugins/jquery-validation/additional-methods.js",
                         "~/Assets/plugins/jquery-validation/localization/messages_vi.js",
-                        "~/Assets/plugins/jquery.mask/jquery.mask.min.js",
+                        "~/Assets/plugins/Inputmask/jquery.inputmask.bundle.min.js",
                         "~/Assets/plugins/tinymce/tinymce.min.js",
+                        "~/Assets/plugins/moment/moment-with-locales.min.js",
                         "~/Assets/plugins/lokijs/lokijs.min.js",
+                        "~/Assets/plugins/lokijs/lokijs/loki-indexed-adapter.min.js",
                         "~/Assets/plugins/lokijs/loki-indexed-adapter.min.js"
                     ));
 

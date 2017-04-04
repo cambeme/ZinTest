@@ -3,9 +3,11 @@ define('tinymce.media.ui.Dialog', [
 	'tinymce.media.core.HtmlToData',
 	'tinymce.media.core.UpdateHtml',
 	'tinymce.media.core.Service',
+	'tinymce.media.core.Size',
 	'global!tinymce.util.Tools',
-	'global!tinymce.Env'
-], function (Delay, HtmlToData, UpdateHtml, Service, Tools, Env) {
+	'global!tinymce.Env',
+	'tinymce.media.ui.SizeManager'
+], function (Delay, HtmlToData, UpdateHtml, Service, Size, Tools, Env, SizeManager) {
 	var embedChange = (Env.ie && Env.ie <= 8) ? 'onChange' : 'onInput';
 
 	var handleError = function (editor) {
@@ -22,27 +24,38 @@ define('tinymce.media.ui.Dialog', [
 		var dataEmbed = element.getAttribute('data-ephox-embed-iri');
 
 		if (dataEmbed) {
-			return {source1: dataEmbed, 'data-ephox-embed-iri': dataEmbed};
+			return {
+				source1: dataEmbed,
+				'data-ephox-embed-iri': dataEmbed,
+				width: Size.getMaxWidth(element),
+				height: Size.getMaxHeight(element)
+			};
 		}
+
 		return element.getAttribute('data-mce-object') ?
 			HtmlToData.htmlToData(editor.settings.media_scripts, editor.serializer.serialize(element, {selection: true})) :
 			{};
 	};
+
 	var getSource = function (editor) {
 		var elm = editor.selection.getNode();
 
-		if (elm.getAttribute('data-mce-object')) {
+		if (elm.getAttribute('data-mce-object') || elm.getAttribute('data-ephox-embed-iri')) {
 			return editor.selection.getContent();
 		}
 	};
 
-	var addEmbedHtml = function (ctx, editor) {
+	var addEmbedHtml = function (win, editor) {
 		return function (response) {
 			var html = response.html;
-			ctx.find('#embed').value(html);
+			var embed = win.find('#embed')[0];
 			var data = Tools.extend(HtmlToData.htmlToData(editor.settings.media_scripts, html), {source1: response.url});
-			ctx.fromJSON(data);
-			updateSize(ctx);
+			win.fromJSON(data);
+
+			if (embed) {
+				embed.value(html);
+				SizeManager.updateSize(win);
+			}
 		};
 	};
 
@@ -63,30 +76,26 @@ define('tinymce.media.ui.Dialog', [
 		editor.selection.select(afterObjects[0]);
 	};
 
-	var submitForm = function (editor) {
-		return function () {
-			var data = this.toJSON();
+	var handleInsert = function (editor, html) {
+		var beforeObjects = editor.dom.select('img[data-mce-object]');
 
-			Service.getEmbedHtml(editor, data)
-				.then(function (response) {
-					var beforeObjects = editor.dom.select('img[data-mce-object]');
-					var html = data.embed ? data.embed : response.html;
-
-					editor.insertContent(html);
-
-					selectPlaceholder(editor, beforeObjects);
-					editor.nodeChanged();
-				})
-				.catch(handleError(editor)); // eslint-disable-line
-		};
+		editor.insertContent(html);
+		selectPlaceholder(editor, beforeObjects);
+		editor.nodeChanged();
 	};
 
-	var updateSize = function (window) {
-		var widthCtrl = window.find('#width')[0];
-		var heightCtrl = window.find('#height')[0];
-		if (widthCtrl && heightCtrl) {
-			widthCtrl.state.set('oldVal', widthCtrl.value());
-			heightCtrl.state.set('oldVal', heightCtrl.value());
+	var submitForm = function (win, editor) {
+		var data = win.toJSON();
+
+		data.embed = UpdateHtml.updateHtml(data.embed, data);
+
+		if (data.embed) {
+			handleInsert(editor, data.embed);
+		} else {
+			Service.getEmbedHtml(editor, data)
+				.then(function (response) {
+					handleInsert(editor, response.html);
+				})["catch"](handleError(editor));
 		}
 	};
 
@@ -111,14 +120,16 @@ define('tinymce.media.ui.Dialog', [
 				onpaste: function () {
 					setTimeout(function () {
 						Service.getEmbedHtml(editor, win.toJSON())
-							.then(addEmbedHtml(win, editor))
-							.catch(handleError(editor)); // eslint-disable-line
+							.then(
+								addEmbedHtml(win, editor)
+							)["catch"](handleError(editor));
 					}, 1);
 				},
 				onchange: function (e) {
 					Service.getEmbedHtml(editor, win.toJSON())
-						.then(addEmbedHtml(win, editor))
-						.catch(handleError(editor)); // eslint-disable-line
+						.then(
+							addEmbedHtml(win, editor)
+						)["catch"](handleError(editor));
 
 					populateMeta(win, e.meta);
 				},
@@ -128,63 +139,25 @@ define('tinymce.media.ui.Dialog', [
 			}
 		];
 
-		var recalcSize = function (e) {
-			var widthCtrl = win.find('#width')[0];
-			var heightCtrl = win.find('#height')[0];
-			var width = widthCtrl.state.get('oldVal');
-			var height = heightCtrl.state.get('oldVal');
+		var advancedFormItems = [];
 
-			var newWidth = widthCtrl.value();
-			var newHeight = heightCtrl.value();
-
-			if (win.find('#constrain')[0].checked() && width && height && newWidth && newHeight) {
-				if (e.control.name() === widthCtrl.name()) {
-					newHeight = Math.round((newWidth / width) * newHeight);
-
-					if (!isNaN(newHeight)) {
-						heightCtrl.value(newHeight);
-					}
-				} else {
-					newWidth = Math.round((newHeight / height) * newWidth);
-
-					if (!isNaN(newWidth)) {
-						widthCtrl.value(newWidth);
-					}
-				}
-			}
+		var reserialise = function (update) {
+			update(win);
 			data = win.toJSON();
 			win.find('#embed').value(UpdateHtml.updateHtml(data.embed, data));
-			updateSize(win);
 		};
 
 		if (editor.settings.media_alt_source !== false) {
-			generalFormItems.push({name: 'source2', type: 'filepicker', filetype: 'media', size: 40, label: 'Alternative source'});
+			advancedFormItems.push({name: 'source2', type: 'filepicker', filetype: 'media', size: 40, label: 'Alternative source'});
 		}
 
 		if (editor.settings.media_poster !== false) {
-			generalFormItems.push({name: 'poster', type: 'filepicker', filetype: 'image', size: 40, label: 'Poster'});
+			advancedFormItems.push({name: 'poster', type: 'filepicker', filetype: 'image', size: 40, label: 'Poster'});
 		}
 
 		if (editor.settings.media_dimensions !== false) {
-			generalFormItems.push({
-				type: 'container',
-				label: 'Dimensions',
-				layout: 'flex',
-				align: 'center',
-				spacing: 5,
-				items: [
-					{
-						name: 'width', type: 'textbox', maxLength: 5, size: 3,
-						onchange: recalcSize, ariaLabel: 'Width'
-					},
-					{type: 'label', text: 'x'},
-					{
-						name: 'height', type: 'textbox', maxLength: 5, size: 3,
-						onchange: recalcSize, ariaLabel: 'Height'
-					},
-					{name: 'constrain', type: 'checkbox', checked: true, text: 'Constrain proportions'}
-				]
-			});
+			var control = SizeManager.createUi(reserialise);
+			generalFormItems.push(control);
 		}
 
 		data = getData(editor);
@@ -196,6 +169,7 @@ define('tinymce.media.ui.Dialog', [
 			name: 'embed',
 			value: getSource(editor),
 			multiline: true,
+			rows: 5,
 			label: 'Source'
 		};
 
@@ -207,7 +181,7 @@ define('tinymce.media.ui.Dialog', [
 		embedTextBox[embedChange] = updateValueOnChange;
 
 		win = editor.windowManager.open({
-			title: 'Insert/edit video',
+			title: 'Insert/edit media',
 			data: data,
 			bodyType: 'tabpanel',
 			body: [
@@ -233,12 +207,21 @@ define('tinymce.media.ui.Dialog', [
 						},
 						embedTextBox
 					]
+				},
+
+				{
+					title: 'Advanced',
+					type: "form",
+					items: advancedFormItems
 				}
 			],
-			onSubmit: submitForm(editor)
+			onSubmit: function () {
+				SizeManager.updateSize(win);
+				submitForm(win, editor);
+			}
 		});
 
-		updateSize(win);
+		SizeManager.syncSize(win);
 	};
 
 	return {
