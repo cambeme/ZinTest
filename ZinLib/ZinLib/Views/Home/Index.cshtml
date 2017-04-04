@@ -4,7 +4,7 @@
     Vẽ dữ liệu JSON:
 <div class="row">
     <div class="checkbox col-md-3">
-        <input type="checkbox" name="collapsed" id="collapsed">
+        <input type="checkbox" name="collapsed" id="collapsed" checked>
         <label for="collapsed">Xổ/Thu gọn</label>
     </div>
     <div class="checkbox col-md-3">
@@ -25,20 +25,30 @@
             }
             return true;
         }
-
-        $("#json").on("keyup", function () {
+        function activateJsonViewer() {
             var options = {
                 collapsed: !$('#collapsed').is(':checked'),
                 withQuotes: $('#quotes').is(':checked')
             };
             $('#json-viewer').jsonViewer(isJSON($(this).val()) ? JSON.parse($(this).val()) : {}, options);
+        }
+        $("#json").on({
+            keyup: function () {
+                activateJsonViewer();
+            },
+            copy: function () {
+                activateJsonViewer();
+            },
+            paste: function () {
+                activateJsonViewer();
+            },
+            cut: function () {
+                activateJsonViewer();
+            }
         });
+
         $(':checkbox').change(function () {
-            var options = {
-                collapsed: !$('#collapsed').is(':checked'),
-                withQuotes: $('#quotes').is(':checked')
-            };
-            $('#json-viewer').jsonViewer(isJSON($("#json").val()) ? JSON.parse($("#json").val()) : {}, options);
+            activateJsonViewer();
         });
     </script>
 }
