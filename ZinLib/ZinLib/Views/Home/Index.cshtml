@@ -1,4 +1,6 @@
-﻿
+﻿<div class="row">
+<textarea id="json" rows="10" style="width:100%"></textarea>
+</div>
     Vẽ dữ liệu JSON:
 <div class="row">
     <div class="checkbox col-md-3">
@@ -15,15 +17,28 @@
 </div>
 @section scripts{
     <script>
+        function isJSON(str) {
+            try {
+                JSON.parse(str);
+            } catch (e) {
+                return false;
+            }
+            return true;
+        }
 
-        $(':checkbox').change(function () {
-            var input = $("ThuaDat, ListDiaChi, ListMucDichSuDung").collectData({ stringify: false, object: true });
+        $("#json").on("keyup", function () {
             var options = {
                 collapsed: !$('#collapsed').is(':checked'),
                 withQuotes: $('#quotes').is(':checked')
             };
-            $('#json-viewer').jsonViewer(input, options);
+            $('#json-viewer').jsonViewer(isJSON($(this).val()) ? JSON.parse($(this).val()) : {}, options);
         });
-
+        $(':checkbox').change(function () {
+            var options = {
+                collapsed: !$('#collapsed').is(':checked'),
+                withQuotes: $('#quotes').is(':checked')
+            };
+            $('#json-viewer').jsonViewer(isJSON($("#json").val()) ? JSON.parse($("#json").val()) : {}, options);
+        });
     </script>
 }

@@ -861,6 +861,8 @@
     <Content Include="Assets\plugins\jquery-validation\localization\messages_vi.js" />
     <Content Include="Assets\plugins\jquery\jquery-2.2.4.js" />
     <Content Include="Assets\plugins\jquery\jquery-2.2.4.min.js" />
+    <Content Include="Assets\plugins\json-viewer\jquery.json-viewer.css" />
+    <Content Include="Assets\plugins\json-viewer\jquery.json-viewer.js" />
     <Content Include="Assets\plugins\jstree\jstree.js" />
     <Content Include="Assets\plugins\jstree\jstree.min.js" />
     <Content Include="Assets\plugins\jstree\themes\default-dark\32px.png" />

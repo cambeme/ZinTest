@@ -27,7 +27,8 @@ namespace ZinLib
                         "~/Assets/plugins/SmartWizard/css/smart_wizard.css",
                         "~/Assets/plugins/SmartWizard/css/smart_wizard_theme_dots.css",
                         "~/Assets/plugins/tooltipster/css/tooltipster.bundle.min.css",
-                        "~/Assets/plugins/tooltipster/css/plugins/tooltipster/sideTip/themes/tooltipster-sideTip-shadow.min.css"
+                        "~/Assets/plugins/tooltipster/css/plugins/tooltipster/sideTip/themes/tooltipster-sideTip-shadow.min.css",
+                        "~/Assets/plugins/json-viewer/jquery.json-viewer.css"
                     ));
 
             bundles.Add(new StyleBundle("~/css/custom").Include(
@@ -50,6 +51,7 @@ namespace ZinLib
                         "~/Assets/plugins/jstree/jstree.min.js",
                         "~/Assets/plugins/SmartWizard/js/jquery.smartWizard.min.js",
                         "~/Assets/plugins/tooltipster/js/tooltipster.bundle.min.js",
+                        "~/Assets/plugins/json-viewer/jquery.json-viewer.js",
                         "~/Assets/plugins/jquery-validation/jquery.validate.js",
                         "~/Assets/plugins/jquery-validation/additional-methods.js",
                         "~/Assets/plugins/jquery-validation/localization/messages_vi.js",
