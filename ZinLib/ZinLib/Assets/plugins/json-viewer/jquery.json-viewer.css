@@ -6,10 +6,22 @@ ul.json-dict, ol.json-array {
   padding-left: 2em;
 }
 .json-string {
-  color: #0B7500;
+  color: brown;
 }
-.json-literal {
-  color: #1A01CC;
+.json-number {
+    color: blue;
+    font-weight: bold;
+}
+.json-boolean-true {
+    color: green;
+    font-weight: bold;
+}
+.json-boolean-false {
+    color: red;
+    font-weight: bold;
+}
+.json-null {
+  color: purple;
   font-weight: bold;
 }
 

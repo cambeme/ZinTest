@@ -1670,6 +1670,7 @@
     <Content Include="Assets\fonts\open-sans\open-sans-v13-cyrillic_latin_cyrillic-ext_latin-ext_vietnamese_greek-ext_greek-regular.woff2" />
     <None Include="bundleconfig.json" />
     <None Include="Project_Readme.html" />
+    <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

@@ -23,43 +23,844 @@ var CurrentForm, CurrentScript;
 
 // #region database
 var dbAdapter = new LokiIndexedAdapter("DATABASE");
-var db = new loki("LOCALDATA", {
+var localDB = new loki("LOCALDATA", {
+    verbose: true,
     autosave: true,
-    autosaveInterval: 1000,
+    autosaveInterval: 0,
     autoload: true,
-    //adapter: dbAdapter,
-    //autoloadCallback: function () {
-    //    if (db.getCollection("ThuaDat") && db.getCollection("ThuaDat").find().length > 0) {
-    //        alertify.alert("Dữ liệu phiên làm việc trước vẫn còn, bạn có muốn khôi phục?", {
-    //            "Khôi phục": function () {
-    //                $.each(["ThuaDat", "ListDiaChi", "ListMucDichSuDung", "ListNguonGocSuDungDat"], function (index, value) {
-    //                    if (value.startsWith("List")) {
-    //                        GetData(value, "mdlChiTiet" + value.substring(4));
-    //                    } else {
-    //                        GetData(value, "mdlChiTiet" + value);
-    //                    }
-    //                    RemoveTempId(value);
-    //                });
-    //                alertify.success("tl", "Khôi phục thành công");
-    //            },
-    //            "Xóa": function () {
-    //                try {
-    //                    $.each(["ThuaDat", "ListDiaChi", "ListMucDichSuDung", "ListNguonGocSuDungDat"], function (index, value) {
-    //                        var collection = db.getCollection(value);
-    //                        if (collection !== null) {
-    //                            collection.remove(collection.find());
-    //                        }
-    //                        db.removeCollection(value);
-    //                    });
-    //                    alertify.success("tl", "Xóa thành công");
-    //                } catch (err) {
-    //                    alertify.warning("tl", err);
-    //                }
-    //            }
-    //        });
-    //    }
-    //}
+    adapter: dbAdapter,
+    autoloadCallback: function () {
+        //if (checkLocalExist('DanhMuc')) {
+        //    var localData = getFromLocal('DanhMuc');
+        //    DanhMucAjax.GetAllDanhMuc(localData.Version, function (data) {
+        //        if (data.isSuccess) {
+        //            if (data.Version === localData.Version) {
+        //                capNhatDanhMuc(localData.Value);
+        //            } else {
+        //                saveToLocal('DanhMuc', data);
+        //                capNhatDanhMuc(data.Value);
+        //            }
+        //        } else {
+        //            VBDLIS.Msg.show({ msg: "Không lấy được danh mục. " + data.Value, icon: VBDLIS.Msg.UNSUCCESS });
+        //        }
+        //    });
+        //} else {
+        //    DanhMucAjax.GetAllDanhMuc(-1, function (data) {
+        //        if (data.isSuccess) {
+        //            saveToLocal('DanhMuc', data);
+        //            capNhatDanhMuc(data.Value);
+        //        } else {
+        //            VBDLIS.Msg.show({ msg: "Không lấy được danh mục. " + data.Value, icon: VBDLIS.Msg.UNSUCCESS });
+        //        }
+        //    });
+        //}
+        //if (db.getCollection("ThuaDat") && db.getCollection("ThuaDat").find().length > 0) {
+        //    alertify.alert("Dữ liệu phiên làm việc trước vẫn còn, bạn có muốn khôi phục?", {
+        //        "Khôi phục": function () {
+        //            $.each(["ThuaDat", "ListDiaChi", "ListMucDichSuDung", "ListNguonGocSuDungDat"], function (index, value) {
+        //                if (value.startsWith("List")) {
+        //                    GetData(value, "mdlChiTiet" + value.substring(4));
+        //                } else {
+        //                    GetData(value, "mdlChiTiet" + value);
+        //                }
+        //                RemoveTempId(value);
+        //            });
+        //            alertify.success("tl", "Khôi phục thành công");
+        //        },
+        //        "Xóa": function () {
+        //            try {
+        //                $.each(["ThuaDat", "ListDiaChi", "ListMucDichSuDung", "ListNguonGocSuDungDat"], function (index, value) {
+        //                    var collection = db.getCollection(value);
+        //                    if (collection !== null) {
+        //                        collection.remove(collection.find());
+        //                    }
+        //                    db.removeCollection(value);
+        //                });
+        //                alertify.success("tl", "Xóa thành công");
+        //            } catch (err) {
+        //                alertify.warning("tl", err);
+        //            }
+        //        }
+        //    });
+        //}
+    }
 });
+// #endregion
+
+// #region thư viện VBDLIS
+var URL_OU_DEFAULT = "/root/ims/vbd/users/vanphongdatdai/";
+var VBDLIS = {
+    Global: {
+        DANTOC: [],
+        DISTRICT: [],
+        LOAIBANDODIACHINH: [],
+        LOAIBIENDONG: [],
+        LOAICAPCONGTRINH: [],
+        LOAICAPNHA: [],
+        LOAICONGTRINHNGAM: [],
+        LOAIDOITUONG: [],
+        LOAIGIAYCHUNGNHAN: [],
+        LOAIGIAYTODINHKEM: [],
+        LOAIGIAYTOTOCHUC: [],
+        LOAIGIAYTOTUYTHAN: [],
+        LOAIMUCDICHSUDUNG: [],
+        LOAINGUONGOCSUDUNGDAT: [],
+        LOAINHARIENGLE: [],
+        LOAITOCHUC: [],
+        PROVINCE: [],
+        QUOCTICH: [],
+        WARD: []
+    },
+    VModule: {}
+};
+
+VBDLIS.Global.ShowMessage = function (title, message, type) {
+    new PNotify({
+        title: title,
+        text: (message != null && message.length > 0) ? message : "",
+        icon: "fa fa-envelope-o",
+        type: type
+    });
+};
+
+VBDLIS.Global.GetDanTocById = function (id) {
+    if (VBDLIS.Global.DANTOC && VBDLIS.Global.DANTOC.length > 0) {
+        var res = VBDLIS.Global.DANTOC.filter(function (x) {
+            return x.danTocId == id;
+        });
+
+        if (res && res.length > 0) {
+            return res[0].tenDanToc;
+        }
+    }
+    else {
+        console.log("Không có dữ liệu dân tộc");
+    }
+
+    return "";
+};
+
+VBDLIS.Global.GetQuocTichById = function (id) {
+    if (VBDLIS.Global.QUOCTICH && VBDLIS.Global.QUOCTICH.length > 0) {
+        var res = VBDLIS.Global.QUOCTICH.filter(function (x) {
+            return x.quocTichId == parseInt(id);
+        });
+
+        if (res && res.length > 0) {
+            return res[0].tenQuocGiaQT;
+        }
+    }
+
+    return "";
+};
+
+VBDLIS.Global.GetProvinceById = function (id) {
+    if (VBDLIS.Global.PROVINCE != null) {
+        var filter = VBDLIS.Global.PROVINCE.filter(function (x) {
+            return x.tinhId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.GetDistrictById = function (id) {
+    if (VBDLIS.Global.DISTRICT != null) {
+        var filter = VBDLIS.Global.DISTRICT.filter(function (x) {
+            return x.huyenId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.GetWardById = function (id) {
+    if (VBDLIS.Global.WARD != null) {
+        var filter = VBDLIS.Global.WARD.filter(function (x) {
+            return x.xaId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.GetLoaiNguonGocSuDungById = function (id) {
+    if (VBDLIS.Global.LOAINGUONGOCSUDUNGDAT != null) {
+        var filter = VBDLIS.Global.LOAINGUONGOCSUDUNGDAT.filter(function (x) {
+            return x.loaiNguonGocSuDungDatId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.GetLoaiMucDichSuDungById = function (id) {
+    if (VBDLIS.Global.LOAIMUCDICHSUDUNG != null) {
+        var filter = VBDLIS.Global.LOAIMUCDICHSUDUNG.filter(function (x) {
+            return x.loaiMucDichSuDungId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.GetLoaiBanDoDiaChinhById = function (id) {
+    if (VBDLIS.Global.LOAIBANDODIACHINH != null) {
+        var filter = VBDLIS.Global.LOAIBANDODIACHINH.filter(function (x) {
+            return x.loaiBanDoDiaChinhId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.GetLoaiGiayToTuyThanById = function (id) {
+    if (VBDLIS.Global.LOAIGIAYTOTUYTHAN != null) {
+        var filter = VBDLIS.Global.LOAIGIAYTOTUYTHAN.filter(function (x) {
+            return x.loaiGiayToTuyThanId == parseInt(id);
+        });
+
+        if (filter != null && filter.length > 0) {
+            return filter[0];
+        }
+    }
+
+    return {};
+};
+
+VBDLIS.Global.TryParseDateTime = function (value) {
+    var partent = /^\/Date\(-*\d+\)\/$/; //"/Date(716144400000)/"
+    var partentGetText = /-*\d+/;
+    if (value == null) return '';
+    if (typeof (value) == 'object') {
+        value = moment(value);
+
+        if (value._d.toString() == "Invalid Date") {
+            value = null;
+        }
+    }
+    else if (typeof (value) == 'string') {
+        if (partent.test(value)) {
+            value = partentGetText.exec(value)[0];
+            value = moment(parseInt(value));
+        }
+    }
+
+
+    var date = moment(value, "DD/MM/YYYY", true);
+    if (date._d.toString() != "Invalid Date") {
+        return date.format("DD/MM/YYYY");
+    }
+    else {
+        return '';
+    }
+
+};
+
+VBDLIS.Global.TryParseDateInObject = function (obj) {
+    if (typeof (obj) == "object") {
+        for (var prop in obj) {
+            obj[prop] = VBDLIS.Global.TryParseDateInObject(obj[prop]);
+        }
+
+        return obj;
+    }
+    else {
+        var pattern = /Date\(([^)]+)\)/;
+        var results = pattern.exec(obj);
+
+        if (results && results.length == 2) {
+            var date = VBDLIS.Global.TryParseDateTime(obj);
+
+            if (date) {
+                return date;
+            }
+        }
+
+        return obj;
+    }
+};
+
+VBDLIS.Global.TrimSign = function (str, noWhiteSpace) {
+
+    if (!str) return "";
+
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+
+    if (noWhiteSpace) {
+        str = str.split(" ").join('');
+    }
+
+    return str;
+}
+
+//Hàm tạo ra chuỗi thông tin đại diện cho từng node trên jstree
+VBDLIS.Global.GetLoaiDoiTuongById = function (doiTuongId) {
+    var loaiDoiTuong = {};
+
+    loaiDoiTuong.doiTuongId = doiTuongId;
+
+    if (doiTuongId == 0) {
+        loaiDoiTuong.TenMaDoiTuong = "CANHAN";
+        loaiDoiTuong.TenDoiTuong = "Cá nhân";
+    }
+    else if (doiTuongId == 1) {
+        loaiDoiTuong.TenMaDoiTuong = "VOCHONG";
+        loaiDoiTuong.TenDoiTuong = "Vợ chồng";
+    }
+    else if (doiTuongId == 2) {
+        loaiDoiTuong.TenMaDoiTuong = "HOGIADINH";
+        loaiDoiTuong.TenDoiTuong = "Hộ gia đình";
+    }
+    else if (doiTuongId == 3) {
+        loaiDoiTuong.TenMaDoiTuong = "TOCHUC";
+        loaiDoiTuong.TenDoiTuong = "Tổ chức";
+    }
+    else if (doiTuongId == 4) {
+        loaiDoiTuong.TenMaDoiTuong = "CONGDONG";
+        loaiDoiTuong.TenDoiTuong = "Cộng đồng";
+    }
+    else if (doiTuongId == 5) {
+        loaiDoiTuong.TenMaDoiTuong = "NHOMNGUOI";
+        loaiDoiTuong.TenDoiTuong = "Nhóm người";
+    }
+    else if (doiTuongId == 6) {
+        loaiDoiTuong.TenMaDoiTuong = "THUADAT";
+        loaiDoiTuong.TenDoiTuong = "Thửa đất";
+    }
+    else if (doiTuongId == 7) {
+        loaiDoiTuong.TenMaDoiTuong = "NHARIENGLE";
+        loaiDoiTuong.TenDoiTuong = "Nhà riêng lẻ";
+    }
+    else if (doiTuongId == 8) {
+        loaiDoiTuong.TenMaDoiTuong = "CANHO";
+        loaiDoiTuong.TenDoiTuong = "Căn hộ";
+    }
+    else if (doiTuongId == 9) {
+        loaiDoiTuong.TenMaDoiTuong = "NHACHUNGCU";
+        loaiDoiTuong.TenDoiTuong = "Nhà chung cư";
+    }
+    else if (doiTuongId == 10) {
+        loaiDoiTuong.TenMaDoiTuong = "KHUCHUNGCU";
+        loaiDoiTuong.TenDoiTuong = "Khu chung cư";
+    }
+    else if (doiTuongId == 11) {
+        loaiDoiTuong.TenMaDoiTuong = "CONGTRINHXAYDUNG";
+        loaiDoiTuong.TenDoiTuong = "Công trình xây dựng";
+    }
+    else if (doiTuongId == 12) {
+        loaiDoiTuong.TenMaDoiTuong = "CONGTRINHNGAM";
+        loaiDoiTuong.TenDoiTuong = "Công trình ngầm";
+    }
+    else if (doiTuongId == 13) {
+        loaiDoiTuong.TenMaDoiTuong = "RUNGTRONG";
+        loaiDoiTuong.TenDoiTuong = "Rừng trồng";
+    }
+    else if (doiTuongId == 14) {
+        loaiDoiTuong.TenMaDoiTuong = "CAYLAUNAM";
+        loaiDoiTuong.TenDoiTuong = "Cây lâu năm";
+    }
+
+    return loaiDoiTuong;
+}
+
+VBDLIS.Global.TextGenertor = function (layer, obj) {
+    //if (!obj) {
+    //    obj = {};
+    //} else {
+    //    SaveLocalData(layer, obj);
+    //}
+    var pattern, gioiTinh, Formated;
+    switch (layer) {
+        case "CANHAN":
+            pattern = "Cá nhân - {0}: {1} - Ngày sinh: {2} - Quốc tịch: {3} - Dân tộc: {4}";
+            gioiTinh = "Ông";
+            if (obj.gioiTinh == 0 || obj.gioiTinh == false) {
+                gioiTinh = "Bà";
+            }
+            var quocTich = VBDLIS.Global.GetQuocTichById(obj.quocTichId1 || obj.quocTichId2);
+            var danToc = VBDLIS.Global.GetDanTocById(obj.danTocId);
+
+            var ngaySinh = VBDLIS.Global.TryParseDateTime(obj.ngaySinh);
+            Formated = String.format(pattern, gioiTinh, obj.hoTen, ngaySinh, quocTich, danToc);
+            break;
+        case "NGUONGOCSUDUNG":
+            pattern = "Diện tích: {0}m² - Nguồn gốc chi tiết: {1} - Loại nguồn gốc: {2}";
+            Formated = String.format(pattern, obj.dienTich, obj.chiTiet, obj.loaiNguonGocSuDungDatId);
+            break;
+        case "DIACHI":
+            pattern = "{0}";
+            Formated = String.format(pattern, obj.diaChiChiTiet);
+            break;
+        case "TAILIEUDODAC":
+            pattern = "Loại bản đồ địa chính: {0} - Phương pháp đo: {1} - Đơn vị đo: {2}";
+            var tenLoaiBanDoDiaChinh = VBDLIS.Global.GetLoaiBanDoDiaChinhById(obj.loaiBanDoDiaChinhId).tenLoaiBanDoDiaChinh;
+            Formated = String.format(pattern, tenLoaiBanDoDiaChinh, obj.phuongPhapDo, obj.donViDoDac);
+            break;
+        case "GIAYTOTUYTHAN":
+            pattern = "Loại giấy tờ:{0} - Số giấy tờ:{1} - Ngày cấp:{2} - Nơi cấp:{3}";
+            var loai = VBDLIS.Global.GetLoaiGiayToTuyThanById(obj.loaiGiayToTuyThanId).tenLoaiGiayTo;
+            Formated = String.format(pattern, loai, obj.soGiayTo, VBDLIS.Global.TryParseDateTime(obj.ngayCap), obj.noiCap);
+            break;
+        case "GIAYTOTOCHUC":
+            pattern = "Loại tổ chức: {0} - Số giấy tờ: {1} - Ngày cấp: {2} - Nơi cấp: {3}";
+            Formated = String.format(pattern, obj.loaiGiayToToChucId, obj.soGiayTo, obj.ngayCap, obj.noiCap);
+            break;
+        case "MUCDICHSUDUNG":
+            pattern = "{0}({1}): Diện tích: {2}m² - Thời hạn sử dụng: {3}";
+            Formated = String.format(pattern, obj.LoaiMucDichSuDung != null ? obj.LoaiMucDichSuDung.loaiMucDichSuDungId : obj.loaiMucDichSuDungId, obj.LoaiMucDichSuDung != null ? obj.LoaiMucDichSuDung.tenLoaiMucDichSuDung : obj.loaiMucDichSuDungId, obj.dienTich, obj.thoiHanSuDung);
+            break;
+        case "TOCHUC":
+            var nguoiDaiDien = obj.NguoiDaiDien;
+            if (nguoiDaiDien instanceof Array && nguoiDaiDien.length > 0) {
+                nguoiDaiDien = nguoiDaiDien[0];
+            }
+
+
+            if (nguoiDaiDien) {
+                gioiTinh = "Ông";
+                if (nguoiDaiDien.gioiTinh == 0 || nguoiDaiDien.gioiTinh == false) {
+                    gioiTinh = "Bà";
+                }
+                nguoiDaiDien = String.format("{0}: {1}", gioiTinh, nguoiDaiDien.hoTen);
+            }
+            pattern = "Tổ chức: {0} - Mã định danh: {1} - Người đại diện: {2}";
+            Formated = String.format(pattern, obj.tenToChuc, obj.maSoDinhDanh, nguoiDaiDien);
+            break;
+        case "HOGIADINH":
+            pattern = "Hộ gia đình: Chủ hộ: {0} - Số sổ hộ khẩu: {1} - Hồ sơ hộ khẩu số: {2}";
+            var tenChuHo = obj.chuHoId;
+            if (obj.ChuHo != null && obj.ChuHo.hoTen != "") {
+                tenChuHo = obj.ChuHo.hoTen;
+            }
+            Formated = String.format(pattern, tenChuHo, obj.soSoHoKhau, obj.hoSoHoKhauSo);
+            break;
+        case "THANHVIENHOGIADINH":
+            pattern = "{0}: {1} - Quan hệ với chủ hộ: {2}";
+            var hoTen = "";
+            gioiTinh = "";
+            if (obj.CaNhan) {
+                hoTen = obj.CaNhan.hoTen;
+                gioiTinh = obj.CaNhan.gioiTinh ? "Ông" : "Bà";
+            }
+            Formated = String.format(pattern, gioiTinh, hoTen, obj.quanHeVoiChuHo);
+            break;
+        case "VOCHONG":
+            var pattern = "Vợ chồng - Ông: {4} và Bà: {3} - Số GCN kết hôn: {0} - Số quyển: {1} - Thời kiểm hình thành: {2}";
+            var hoTenVo = "";
+            var hoTenChong = "";
+            if (obj.Vo) {
+                hoTenVo = obj.Vo.hoTen;
+            }
+            if (obj.Chong) {
+                hoTenChong = obj.Chong.hoTen;
+            }
+            Formated = String.format(pattern, obj.soGiayChungNhanKetHon, obj.quyenSoGiayChungNhanKetHon, VBDLIS.Global.TryParseDateTime(obj.thoiDiemHinhThanh), hoTenVo, hoTenChong);
+            break;
+        case "CONGDONG":
+            pattern = "Cộng đồng: {0} - Loại giấy tờ: {1} - Số giấy tờ: {2} - Địa danh cư trú: {3}";
+            Formated = String.format(pattern, obj.tenCongDong, obj.loaiGiayTo, obj.soGiayTo, obj.diaDanhCuTru);
+            break;
+        case "THUADAT":
+            pattern = "Thửa đất: {0}({1}) - Diện tích: {2}m² - Địa chỉ: {3}";
+
+            var diaChi = "Không có thông tin";
+            var thuaDat = obj;
+
+            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
+                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
+            }
+
+
+            Formated = String.format(pattern, obj.soThuTuThua, obj.soHieuToBanDo, obj.dienTich, diaChi);
+            break;
+        case "NHARIENGLE":
+            pattern = "Nhà riêng lẻ số: {0} - Diện tích xây dựng: {1}m² - Diện tích sàn: {2}m² - Địa chỉ: {3}";
+            var diaChi = "Không có thông tin";
+            var thuaDat = obj;
+
+            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
+                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
+            }
+            Formated = String.format(pattern, obj.soNha, obj.dienTichXayDung, obj.dienTichSan, diaChi);
+            break;
+        case "HANGMUCNHARIENGLE":
+            pattern = "Hạng mục: {0} - Diện tích sàn: {1}m² - Ghi chú: {2}";
+            Formated = String.format(pattern, obj.tenHangMucNha, obj.dienTichSan, obj.ghiChu);
+            break;
+        case "HANGMUCSOHUUCHUNG":
+            pattern = "Hạng mục: {0} - Diện tích: {1}m² - Ghi chú: {2}";
+            Formated = String.format(pattern, obj.tenHangMuc, obj.dienTich, obj.ghiChu);
+            break;
+        case "CANHO":
+            pattern = "Căn hộ số: {0} {1}- Tầng số: {2} - Diện tích sàn: {3}m² - Diện tích sử dụng: {4}m²";
+            Formated = String.format(pattern, obj.soHieuCanHo, obj.nhaChungCu != null ? "chung cư: " + obj.nhaChungCu.tenChungCu + " " : "", obj.tangSo, obj.dienTichSan, obj.dienTichSuDung);
+            break;
+        case "CONGTRINHXAYDUNG":
+            pattern = "Công trình: {0} - Số tầng: {1} - Diện tích xây dựng: {2}m² - Diện tích sàn: {3}m²";
+            Formated = String.format(pattern, obj.tenCongTrinh, obj.soTang, obj.dienTichXayDung, obj.dienTichSan);
+            break;
+        case "HANGMUCCONGTRINH":
+            pattern = "Hạng mục: {0} - Công năng: {1} - Kết cấu: {2} - Diện tích xây dựng: {3}m² - Diện tích sàn: {4}m²";
+            Formated = String.format(pattern, obj.tenHangMuc, obj.congNang, obj.ketCau, obj.dienTichXayDung, obj.dienTichSan);
+            break;
+        case "CONGTRINHNGAM":
+            pattern = "Công trình ngầm: {0} - Diện tích: {1}m² - Năm xây dựng: {2} - Năm hoàn thành: {3}";
+            Formated = String.format(pattern, obj.tenCongTrinh, obj.dienTichCongTrinh, obj.namXayDung, obj.namHoanThanh);
+            break;
+        case "CAYLAUNAM":
+            pattern = "Loại cây: {0} - Diện tích: {1}m² - Địa chỉ: {2}";
+
+            var diaChi = "Không có thông tin";
+            var thuaDat = obj;
+
+            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
+                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
+            }
+
+            Formated = String.format(pattern, obj.tenCayLauNam, obj.dienTich, diaChi);
+            break;
+        case "RUNGTRONG":
+            pattern = "Rừng trồng: {0} - Diện tích: {1}m² - Địa chỉ: {2}";
+
+            var diaChi = "Không có thông tin";
+            var thuaDat = obj;
+
+            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
+                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
+            }
+
+            Formated = String.format(pattern, obj.tenRung, obj.dienTich, diaChi);
+            break;
+        case "NHOMNGUOI": {
+            pattern = "Nhóm người: Người đại diện:{0}";
+
+            var nguoiDaiDien = obj.NguoiDaiDien;
+            if (nguoiDaiDien instanceof Array && nguoiDaiDien.length > 0) {
+                nguoiDaiDien = nguoiDaiDien[0];
+            }
+
+            if (nguoiDaiDien) {
+                if (nguoiDaiDien.loaiDoiTuong == 0) //CaNhan
+                {
+                    var gioiTinh = "";
+                    gioiTinh = nguoiDaiDien.ThongTinChu.gioiTinh ? "Ông" : "Bà";
+                    Formated = String.format(pattern, gioiTinh + " " + nguoiDaiDien.ThongTinChu.hoTen)
+                }
+                else {
+                    if (nguoiDaiDien.ThongTinChu) {
+                        Formated = String.format("Vợ chồng ông bà: " + nguoiDaiDien.ThongTinChu.Chong.hoTen + " và " + nguoiDaiDien.ThongTinChu.Vo.hoTen)
+                    }
+                    else {
+                        Formated = "Không có người đại diện"
+                    }
+
+                }
+            }
+            break;
+        }
+        case "LIENKETTAISANTHUADAT":
+            pattern = "Thuộc thửa đất: {0}({1}) - Diện tích: {2}m² - Địa chỉ: {3}";
+            var diaChi = "Không có thông tin";
+            var thuaDat = obj;
+
+            if (obj.thuaDat) {
+                thuaDat = obj.thuaDat;
+            }
+
+            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
+                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
+            }
+
+            Formated = String.format(pattern, thuaDat.soThuTuThua, thuaDat.soHieuToBanDo, thuaDat.dienTich, diaChi);
+            break;
+        case "DANGKYTAISAN":
+            pattern = "Thông tin đăng ký: <b>{0}</b> - Diện tích: {1}m² - Tỷ lệ: {2} - Ngày bắt đầu: {3} - Ngày kết thúc: {4} - Thời gian sở hữu: {5}";
+            var ngayBatDau = VBDLIS.Global.TryParseDateTime(obj.ngayBatDauSoHuu);
+            var thoiHanSoHuu = VBDLIS.Global.TryParseDateTime(obj.thoiHanSoHuu);
+            Formated = String.format(pattern, (obj.duDieuKienCapGiay ? "Đủ điều kiện" : "Không đủ điều kiện"), obj.dienTich, obj.tyLe, ngayBatDau, thoiHanSoHuu, obj.thoiGianSoHuu);
+            break;
+        case "GIAYCHUNGNHAN":
+            pattern = "Số phát hành: {0} - Số hồ sơ gốc: {1} - Ngày vào sổ: {2} - Mã vạch: {3} - Người ký: {4}";
+            var ngayVaoSo = VBDLIS.Global.TryParseDateTime(obj.ngayVaoSo);
+            Formated = String.format(pattern, obj.soPhatHanh, obj.soHoSoGoc, ngayVaoSo, obj.maVach, obj.tenNguoiKy);
+            break;
+        case "NHACHUNGCU":
+            pattern = "Tên chung cư: {0} - Tên khu chung cư: {1} - Địa chỉ: {2} - Năm xây dựng: {3}";
+            var ngayVaoSo = VBDLIS.Global.TryParseDateTime(obj.ngayVaoSo);
+
+            if (obj && obj.ListDiaChi && obj.ListDiaChi.length > 0) {
+                diaChi = obj.ListDiaChi[0].diaChiChiTiet;
+            }
+
+            Formated = String.format(pattern, obj.tenChungCu, (obj.khuChungCu && obj.khuChungCu.tenKhu ? obj.khuChungCu.tenKhu : "Không có thông tin"), diaChi, obj.namXayDung);
+            break;
+        default:
+            Formated = layer + " Chưa được định nghĩa";
+    }
+    return Formated;
+};
+
+VBDLIS.Global.BindScriptsDynamic = function (dom, callback) {
+    var scripts = dom.find('script');
+
+    var waitAll = 0;
+    if (scripts && scripts.length > 0) {
+        scripts.each(function (index, script) {
+            var urlScr = script.getAttribute('src');
+
+            if (urlScr != null) {
+                var fnLoad = urlScr.split('/');
+                fnLoad = fnLoad[fnLoad.length - 1].replace('.js', '');
+            }
+            else {
+                waitAll++;
+            }
+
+
+            $.getScript(urlScr).then(function () {
+                waitAll++;
+
+                if (typeof (VBDLIS.VModule.VModuleJsLoader[fnLoad]) == 'function') {
+                    VBDLIS.VModule.VModuleJsLoader[fnLoad]($(script));
+                }
+
+                if (waitAll == scripts.length && typeof (callback) == 'function') {
+                    callback();
+                    InitControls();
+                }
+
+            });
+        });
+
+    }
+}
+
+VBDLIS.Msg = {
+    OK: "OK",
+    YESNO: "YESNO",
+    WARNING: "exclamation-circle",
+    INFO: "info-circle",
+    QUESTION: "question-circle",
+    ERROR: "times-circle",
+    SUCCESS: "check-circle",
+    UNSUCCESS: "meh-o",
+    show: function (opts) {
+        var defaultOpts = {
+            title: "Thông báo",
+            msg: "",
+            errorMsg: "",
+            icon: "info-circle",
+            buttons: "OK",
+            fn: null,
+            ajaxErr: false
+        };
+        opts = $.extend({}, defaultOpts, opts);
+
+        var modal = [];
+        var iconColor = "#dddddd"; //default
+        if (opts.icon == VBDLIS.Msg.WARNING) {
+            iconColor = "orange";
+        }
+        else if (opts.icon == VBDLIS.Msg.ERROR || opts.icon == VBDLIS.Msg.UNSUCCESS) {
+            iconColor = "#e26565";
+        }
+
+        modal.push("<div class='modal'  data-keyboard='false'>");
+        if (opts.ajaxErr) {
+            modal.push("<div class='modal-dialog modal-dialog modal-center modal-95' role='document'>");
+        } else {
+            modal.push("<div class='modal-dialog modal-dialog modal-center modal-30' role='document'>");
+        }
+        modal.push("<div class='modal-content'>");
+        modal.push("<div class='modal-header'>");
+        modal.push("<h4 class='modal-title'>" + (opts.ajaxErr ? "Lỗi máy chủ" : opts.title) + "</h4>");
+        modal.push("</div>");
+        modal.push("<div class='modal-body'>");
+        if (opts.ajaxErr) {
+            modal.push("<div style='overflow:auto;max-height:65vh'>");
+        } else {
+            modal.push("<div style='width:50px; height:50px; display: table-cell; font-size:50px; color: " + iconColor + "'><i class='fa fa-" + opts.icon + "' style='position: absolute; top:10px; opacity: 0.4'></i></div>");
+            modal.push("<div style='display: table-cell; text-align: center; vertical-align:middle; padding-left:15px'>");
+        }
+        modal.push("<p style='font-size:15px'>" + opts.msg + "</p>");
+        modal.push("<p style='font-size:15px'>" + opts.errorMsg + "</p>");
+        modal.push("</div>");
+        modal.push("<div></div>");
+        modal.push("</div>");
+        modal.push("<div class='modal-footer' style='text-align: center'>");
+        modal.push("</div>");
+        modal.push("</div>");
+        modal.push("</div>");
+        modal.push("</div>");
+
+        modal = $(modal.join("")).appendTo($("#dvModalContainer"));
+
+        if (opts.buttons == "OK") {
+            modal.find(".modal-footer").append($("<button type='button' class='btn btn-success' value='OK'><i class='fa fa-check-circle'></i> Đồng ý</button>"));
+
+        }
+        else if (opts.buttons == "YESNO") {
+            modal.find(".modal-footer").append($("<button type='button' class='btn btn-success' value='YES'><i class='fa fa-check-circle'></i> Đồng ý</button>"));
+            modal.find(".modal-footer").append($("<button type='button' class='btn' value='NO'><i class='fa fa-times-circle'></i> Không</button>"));
+        }
+        modal.find(".modal-footer button").click(function () {
+            modal.modal("hide");
+            modal.remove();
+
+            if (typeof (opts.fn) == "function") {
+                opts.fn(this.value);
+            }
+        });
+
+        modal.modal("show");
+    }
+};
+
+VBDLIS.VModule.VModuleJsLoader = {};
+
+VBDLIS.VModule.getVModule = function (jObject) {
+    var vModule = jObject.closest(".VModule");
+
+    if (vModule[0] != null) {
+
+        if (vModule[0].hasInit) {
+            return vModule;
+        }
+
+        vModule.mode = "add";
+
+        vModule.VModuleId = vModule.attr("vmodule-id");
+
+        vModule.on("initview", function () {
+            if (vModule.onChangeData) {
+                vModule.onChangeData();
+            }
+        });
+
+        vModule.change(function (e) {
+            if (e != null && e.target != null && $(e.target).hasClass("VModule")) {
+                if (this.value != null && this.value != "") {
+                    if (this.value instanceof Array) {
+                        vModule.mode = "add";
+                    }
+                    else {
+                        vModule.mode = "update";
+                    }
+                }
+                else {
+                    vModule.mode = "add";
+                }
+
+                if (this.value != null && this.value != "" && typeof (this.value) == "object") {
+                    bindFormData(vModule, this.value);
+                }
+                else {
+                    clearFormData(vModule);
+                }
+
+
+                if (vModule.onChangeData) {
+                    vModule.onChangeData();
+                }
+            }
+
+            return false;
+        });
+
+        vModule.saveData = function (fireEvent, mergeMe) {
+            var obj = getFormValue(this);
+
+            var currentData = this.val();
+
+            if (vModule.mode == "add") {
+                obj._id = new Date().getTime();
+            }
+            else {
+                if (currentData && currentData._id)
+                    obj._id = currentData._id;
+            }
+
+            if (mergeMe) {
+                obj = $.extend({}, obj, mergeMe);
+            }
+
+            this[0].value = obj;
+
+            if (typeof (fireEvent) == "undefined" || fireEvent)
+                $(this).trigger(vModule.mode + "_data", obj);
+        };
+
+        vModule.deleteData = function (fireEvent) {
+            vModule;
+            var obj = null;
+            if (this instanceof jQuery) {
+                obj = this.val();
+                this[0].value = null;
+            }
+            else {
+                obj = this.value;
+                this.value = null;
+            }
+
+
+            if (typeof (fireEvent) == "undefined" || fireEvent)
+                $(this).trigger("delete_data", obj);
+
+        };
+
+        vModule.clear = function () {
+            clearFormData(vModule);
+        };
+
+        vModule[0].hasInit = true; //Chỉ khởi tạo 1 lần
+    }
+    else {
+        console.log("vModule not exist", jObject);
+    }
+
+
+
+    return vModule;
+};
 // #endregion
 
 // #region document ready
@@ -304,6 +1105,7 @@ $(function () {
         $(".number").inputmask("integer", { rightAlign: false });
         $(".area").inputmask("decimal", { groupSeparator: ",", autoGroup: true, rightAlign: false, digits: 1, suffix: " m\u00B2", removeMaskOnSubmit: true, autoUnmask: true });
     }
+
     // #endregion
 });
 
@@ -312,560 +1114,52 @@ $(function () {
 // #region anonymous functions
 
 // #region Thư viện CRUD offline
-
-function SaveLocalData(layer, obj) {
-    try {
-        var collection = db.getCollection(layer);
-        if (collection === null) {
-            collection = db.addCollection(layer);
-        }
-        collection.findAndRemove({ 'Id': obj.Id });
-        collection.insert(obj);
-    } catch (e) {
-        alertify.warning("tl", e);
+function checkLocalExist(collectionName) {
+    if (localDB.getCollection(collectionName) === null) {
+        return false;
+    } else {
+        return true;
     }
 }
-//Lấy dữ liệu
-//function GetData(objName, modalId) {
-//    try {
-//        var detectedName;
-//        if (objName.startsWith("List")) {
-//            detectedName = objName.substring(4);
-//        } else {
-//            detectedName = objName;
-//        }
-//        var collection = db.getCollection(objName);
-//        if (collection === null) {
-//            var treeData =
-//                    {
-//                        id: "root",
-//                        text: "Chưa có dữ liệu",
-//                        type: "root"
-//                    };
-//            $("#tree" + detectedName).jstree("create_node", null, treeData, "first");
-//        }
-//        else {
-//            $("#tree" + detectedName).jstree("delete_node", $("#tree" + detectedName).jstree().get_json());
-//            $.each(collection.find(), function (index, value) {
-//                var textdata = TextGenerator(modalId, value);
-//                var treeData;
-//                if (!value.Id) {
-//                    treeData =
-//                    {
-//                        id: value.$loki,
-//                        text: textdata,
-//                        type: "root"
-//                    };
-//                } else {
-//                    treeData =
-//                    {
-//                        id: value.Id,
-//                        text: textdata,
-//                        type: "root"
-//                    };
-//                }
-//                $("#tree" + detectedName).jstree("create_node", null, treeData, "last");
-//            });
-//        }
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
+function saveToLocal(collectionName, docData) {
+    var collection = localDB.getCollection(collectionName);
+    if (collection === null) {
+        collection = localDB.addCollection(collectionName);
+    }
+    collection.clear({ removeIndices: true });
+    var doc = collection.insert(docData);
+    try {
+        collection.update(doc);
+    } catch (err) {
+        alertify.warning("tl", err);
+    }
+}
+function getFromLocal(collectionName) {
+    return localDB.getCollection(collectionName).data[0];
+}
 
-//Lưu chọn dữ liệu
-//function SaveChooseItem(objName, data) {
-//    try {
-//        var collection = db.getCollection(objName);
-//        if (collection === null) {
-//            collection = db.addCollection(objName);
-//        }
-//        var relationship = db.getCollection("Relationship");
-//        if (relationship === null) {
-//            relationship = db.addCollection("Relationship");
-//        }
-//        if (!relationship.findOne({ 'Name': objName })) {
-//            relationship.insert({ Name: objName, Parent: 0 });
-//        }
-//        if (!collection.findOne({ 'Id': data.Id })) {
-//            $.each(data, function (index, value) {
-//                RecursiveChooseItem(index, data[index], data.Id, objName);
-//            });
-//            $.each(data, function (index, value) {
-//                if (index.startsWith("List")) {
-//                    delete data[index];
-//                }
-//            });
-//            $("#tree" + objName).jstree("delete_node", "root");
-//            data.VirtualParent = 0;
-//            var inserted = collection.insert(data);
-//            var textdata = TextGenerator("mdlChiTiet" + objName, inserted);
-//            var treeData =
-//                {
-//                    id: inserted.Id,
-//                    data: { VirtualParent: 0 },
-//                    text: textdata,
-//                    type: "root"
-//                };
-//            $("#tree" + objName).jstree("create_node", null, treeData, "last");
-//        }
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
+function capNhatDanhMuc(dataDanhMuc) {
+    VBDLIS.Global.DANTOC = dataDanhMuc.DanTocs || _DANTOC;
+    VBDLIS.Global.DISTRICT = dataDanhMuc.Districts;
+    VBDLIS.Global.LOAIBANDODIACHINH = dataDanhMuc.LoaiBanDoDiaChinhs;
+    VBDLIS.Global.LOAIBIENDONG = dataDanhMuc.LoaiBienDongs;
+    VBDLIS.Global.LOAICAPCONGTRINH = dataDanhMuc.LoaiCapCongTrinhs;
+    VBDLIS.Global.LOAICAPNHA = dataDanhMuc.LoaiCapNhas;
+    VBDLIS.Global.LOAICONGTRINHNGAM = dataDanhMuc.LoaiCongTrinhNgams;
+    VBDLIS.Global.LOAIDOITUONG = dataDanhMuc.LoaiDoiTuongs;
+    VBDLIS.Global.LOAIGIAYCHUNGNHAN = dataDanhMuc.LoaiGiayChungNhans;
+    VBDLIS.Global.LOAIGIAYTODINHKEM = dataDanhMuc.LoaiGiayToDinhKems;
+    VBDLIS.Global.LOAIGIAYTOTOCHUC = dataDanhMuc.LoaiGiayToToChucs;
+    VBDLIS.Global.LOAIGIAYTOTUYTHAN = dataDanhMuc.LoaiGiayToTuyThans;
+    VBDLIS.Global.LOAIMUCDICHSUDUNG = dataDanhMuc.LoaiMucDichSuDungs;
+    VBDLIS.Global.LOAINGUONGOCSUDUNGDAT = dataDanhMuc.LoaiNguonGocSuDungDats;
+    VBDLIS.Global.LOAINHARIENGLE = dataDanhMuc.LoaiNhaRiengLes;
+    VBDLIS.Global.LOAITOCHUC = dataDanhMuc.LoaiToChucs;
+    VBDLIS.Global.PROVINCE = dataDanhMuc.Provinces;
+    VBDLIS.Global.QUOCTICH = dataDanhMuc.QuocTichs || _QUOCGIA;
+    VBDLIS.Global.WARD = dataDanhMuc.Wards;
 
-//Quét đệ quy khi chọn dữ liệu
-//function RecursiveChooseItem(name, data, parentId, parentName) {
-//    if (name.startsWith("List")) {
-//        var collection = db.getCollection(name);
-//        var detectedName = name.substring(4);
-//        if (collection === null) {
-//            collection = db.addCollection(name);
-//        }
-//        var relationship = db.getCollection("Relationship");
-//        if (!relationship.findOne({ 'Name': name })) {
-//            relationship.insert({ Name: name, Parent: parentName });
-//        }
-//        $("#tree" + detectedName).jstree("delete_node", "root");
-//        $.each(data, function (indexInArray, valueOfElement) {
-//            $.each(valueOfElement, function (docIndex, docValue) {
-//                if (docValue && docValue.toString().includes("/Date(")) {
-//                    valueOfElement[docIndex] = moment(docValue).format("DD/MM/YYYY");
-//                }
-//            });
-//            valueOfElement.VirtualParent = parentId;
-//            var inserted = collection.insert(valueOfElement);
-//            var textdata = TextGenerator("mdlChiTiet" + detectedName, inserted);
-//            var treeData =
-//                {
-//                    id: inserted.Id,
-//                    data: { VirtualParent: inserted.VirtualParent },
-//                    text: textdata,
-//                    type: "root"
-//                };
-//            $("#tree" + detectedName).jstree("create_node", null, treeData, "last");
-//            $.each(valueOfElement, function (index, value) {
-//                RecursiveChooseItem(index, valueOfElement[index], valueOfElement.Id, name);
-//            });
-//        });
-//    }
-//}
-
-//Thêm mới
-//function AddItem(objName, modalId, parentName) {
-//    try {
-//        var temp = db.getCollection("Temp");
-//        if (temp === null) {
-//            temp = db.addCollection("Temp");
-//        }
-//        var tempObj = temp.findOne({ '$loki': 1 });
-//        if (!tempObj) {
-//            temp.insert({ Status: 0 });
-//        } else {
-//            tempObj.Status = 0;
-//            temp.update(tempObj);
-//        }
-//        var relationship = db.getCollection("Relationship");
-//        if (relationship === null) {
-//            relationship = db.addCollection("Relationship");
-//        }
-//        var collection = db.getCollection(objName);
-//        if (collection === null) {
-//            collection = db.addCollection(objName);
-//        }
-//        var result = $("#" + modalId + " *").formToJson();
-//        var inserted;
-//        if (parentName === undefined) {
-//            if (!relationship.findOne({ 'Name': objName })) {
-//                relationship.insert({ Name: objName, Parent: 0 });
-//            }
-//            result.VirtualParent = 0;
-//            inserted = collection.insert(result);
-//            SaveTempId(objName, inserted.$loki);
-
-//        }
-//        else {
-//            if (!relationship.findOne({ 'Name': objName })) {
-//                relationship.insert({ Name: objName, Parent: parentName });
-//            }
-//            result.VirtualParent = GetTempId(parentName).HiddenId;
-//            inserted = collection.insert(result);
-//            SaveTempId(objName, inserted.$loki);
-//        }
-//        RecursiveAddItem(objName);
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
-
-////Quét đệ quy khi thêm mới
-//function RecursiveAddItem(objName) {
-//    var detectedName;
-//    if (objName.startsWith("List")) {
-//        detectedName = objName.substring(4);
-//    } else {
-//        detectedName = objName;
-//    }
-//    $("#tree" + detectedName).jstree("deselect_all");
-//    $("#mdlChiTiet" + detectedName).find(".fileinput-filename").css({ "display": "none" });
-//    if ($("#tree" + detectedName).jstree().get_json().length !== 0) {
-//        $.each(db.getCollection("Relationship").find(), function (index, value) {
-//            if (value.Parent === objName) {
-//                $("#tree" + value.Name.substring(4)).jstree("hide_all");
-//                RecursiveAddItem(value.Name);
-//            }
-//        });
-//    }
-//}
-
-////Sửa
-//function EditItem(objName, modalId) {
-//    try {
-//        var temp = db.getCollection("Temp");
-//        if (temp === null) {
-//            temp = db.addCollection("Temp");
-//        }
-//        var tempObj = temp.findOne({ '$loki': 1 });
-//        if (!tempObj) {
-//            temp.insert({ Status: 1 });
-//        } else {
-//            tempObj.Status = 1;
-//            temp.update(tempObj);
-//        }
-//        var collection = db.getCollection(objName);
-//        var relationship = db.getCollection("Relationship").find();
-//        var id = GetTempId(objName).HiddenId;
-//        $.each(relationship, function (index, value) {
-//            if (value.Parent === objName) {
-//                $("#tree" + value.Name.substring(4)).jstree("hide_all");
-//                var Children = db.getCollection(value.Name).find({ 'VirtualParent': IsGuid(id) ? id : parseInt(id) });
-//                $.each(Children, function (indexInArray, valueOfElement) {
-//                    $("#tree" + value.Name.substring(4)).jstree("show_node", valueOfElement.Id ? valueOfElement.Id : valueOfElement.$loki);
-//                });
-//            }
-//        });
-//        var select;
-//        if (IsGuid(id)) {
-//            select = collection.findOne({ 'Id': id });
-//        } else {
-//            select = collection.findOne({ '$loki': parseInt(id) });
-//        }
-//        $("#" + modalId + " *").jsonToForm(select);
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
-
-////Lưu thêm/sửa
-//function SaveItem(objName, modalId) {
-//    try {
-//        var temp = db.getCollection("Temp");
-//        var status = temp.findOne({ '$loki': 1 });
-//        var id = GetTempId(objName).HiddenId;
-//        if (status.Status === 0) {
-//            SaveAddItem(objName, modalId);
-//        } else {
-//            SaveEditItem(objName, modalId, id);
-//        }
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
-
-//////Lưu thêm
-//function SaveAddItem(objName, modalId) {
-//    var collection = db.getCollection(objName);
-//    var newData = $("#" + modalId + " *").formToJson();
-//    var select = collection.findOne({ '$loki': parseInt(GetTempId(objName).HiddenId) });
-//    $.each(select, function (index, value) {
-//        if (index !== "meta" && index !== "$loki" && newData[index]) {
-//            select[index] = newData[index];
-//        }
-//    });
-//    collection.update(select);
-//    var textdata = TextGenerator(modalId, select);
-//    var treeData =
-//        {
-//            id: select.$loki,
-//            text: textdata,
-//            type: "root"
-//        };
-//    if (objName.startsWith("List")) {
-//        $("#tree" + objName.substring(4)).jstree("delete_node", "root");
-//        $("#tree" + objName.substring(4)).jstree("create_node", null, treeData, "last");
-//    } else {
-//        $("#tree" + objName).jstree("delete_node", "root");
-//        $("#tree" + objName).jstree("create_node", null, treeData, "last");
-//    }
-//    alertify.success("tl", "Thêm mới thành công");
-//}
-
-////Lưu sửa
-//function SaveEditItem(objName, modalId, id) {
-//    var collection = db.getCollection(objName);
-//    var select, newData, textdata;
-//    if (IsGuid(id)) {
-//        select = collection.findOne({ 'Id': id });
-//        newData = $("#" + modalId + " *").formToJson();
-//        $.each(select, function (index, value) {
-//            if (index !== "meta" && index !== "Id" && newData[index]) {
-//                select[index] = newData[index];
-//            }
-//        });
-//        collection.update(select);
-//        textdata = TextGenerator(modalId, select);
-//        if (objName.startsWith("List")) {
-//            $("#tree" + objName.substring(4)).jstree("rename_node", select.Id, textdata);
-//        } else {
-//            $("#tree" + objName).jstree("rename_node", select.Id, textdata);
-//        }
-//        alertify.success("tl", "Chỉnh sửa thành công");
-
-//    } else {
-//        select = collection.findOne({ '$loki': parseInt(id) });
-//        newData = $("#" + modalId + " *").formToJson();
-//        $.each(select, function (index, value) {
-//            if (index !== "meta" && index !== "$loki" && newData[index]) {
-//                select[index] = newData[index];
-//            }
-//        });
-//        collection.update(select);
-//        textdata = TextGenerator(modalId, select);
-//        if (objName.startsWith("List")) {
-//            $("#tree" + objName.substring(4)).jstree("rename_node", select.$loki, textdata);
-//        } else {
-//            $("#tree" + objName).jstree("rename_node", select.$loki, textdata);
-//        }
-//        alertify.success("tl", "Chỉnh sửa thành công");
-//    }
-//}
-
-////Lưu xóa
-//function SaveRemoveItem(objName) {
-//    try {
-//        var relationship = db.getCollection("Relationship").find();
-//        var id = GetTempId(objName).HiddenId;
-//        $.each(relationship, function (index, value) {
-//            if (value.Parent === objName) {
-//                var Children = db.getCollection(value.Name).find({ 'VirtualParent': id });
-//                $.each(Children, function (indexInArray, valueOfElement) {
-//                    var detectedName = value.Name.substring(4);
-//                    $("#tree" + detectedName).jstree("delete_node", valueOfElement.Id);
-//                    $("#tree" + detectedName).jstree("deselect_all");
-//                    RemoveTempId(value.Name);
-//                    if ($("#tree" + detectedName).jstree().get_json().length === 0) {
-//                        var treeData =
-//                    {
-//                        id: "root",
-//                        text: "Chưa có dữ liệu",
-//                        type: "root"
-//                    };
-//                        $("#tree" + detectedName).jstree("create_node", null, treeData, "first");
-//                    }
-//                    SaveRemoveItem(value.Name, valueOfElement.Id);
-//                });
-//                db.getCollection(value.Name).findAndRemove({ 'VirtualParent': id });
-//            }
-//        });
-//        $("#tree" + objName).jstree("delete_node", id);
-//        $("#tree" + objName).jstree("deselect_all");
-//        RemoveTempId(objName);
-//        if (IsGuid(id)) {
-//            db.getCollection(objName).findAndRemove({ 'Id': id });
-//        } else {
-//            db.getCollection(objName).findAndRemove({ '$loki': parseInt(id) });
-//        }
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
-
-//Đóng modal
-//function CloseModal(objName) {
-//    try {
-//        alertify.alert("Dữ liệu phụ thuộc sẽ bị xóa, bạn có muốn sao lưu?", {
-//            "Sao lưu": function () {
-//                if (objName.startsWith("List")) {
-//                    $("#mdlChiTiet" + objName.substring(4)).modal("hide");
-//                } else {
-//                    $("#mdlChiTiet" + objName).modal("hide");
-//                }
-//            },
-//            "Không sao lưu": function () {
-//                var relationship = db.getCollection("Relationship").find();
-//                var id = GetTempId(objName).HiddenId;
-//                $.each(relationship, function (index, value) {
-//                    if (value.Parent === objName) {
-//                        var Children = db.getCollection(value.Name).find({ 'VirtualParent': id });
-//                        $.each(Children, function (indexInArray, valueOfElement) {
-//                            var detectedName = value.Name.substring(4);
-//                            $("#tree" + detectedName).jstree("delete_node", valueOfElement.Id);
-//                            $("#tree" + detectedName).jstree("deselect_all");
-//                            RemoveTempId(value.Name);
-//                            if ($("#tree" + detectedName).jstree().get_json().length === 0) {
-//                                var treeData =
-//                            {
-//                                id: "root",
-//                                text: "Chưa có dữ liệu",
-//                                type: "root"
-//                            };
-//                                $("#tree" + detectedName).jstree("create_node", null, treeData, "first");
-//                            }
-//                            SaveRemoveItem(value.Name, valueOfElement.Id);
-//                        });
-//                        db.getCollection(value.Name).findAndRemove({ 'VirtualParent': id });
-//                    }
-//                });
-//                if (objName.startsWith("List")) {
-//                    $("#mdlChiTiet" + objName.substring(4)).modal("hide");
-//                } else {
-//                    $("#mdlChiTiet" + objName).modal("hide");
-//                }
-//            },
-//            "Quay lại": function () {
-//                return false;
-//            }
-//        });
-//        //var temp = db.getCollection("Temp");
-//        //var tempObj = temp.findOne({ '$loki': 1 });
-//        //if (tempObj.Status !== 1) {
-//        //    var relationship = db.getCollection("Relationship").findOne({ 'Name': objName });
-//        //    //if (relationship.Parent !== 0) {
-//        //    var id = GetTempId(objName).HiddenId;
-//        //    db.getCollection(objName).findAndRemove({ '$loki': parseInt(id) });
-//        //    RemoveTempId(objName);
-//        //    if (objName.startsWith("List")) {
-//        //        $("#tree" + objName.substring(4)).jstree("deselect_all");
-//        //    } else {
-//        //        $("#tree" + objName).jstree("deselect_all");
-//        //    }
-//        //    //}
-//        //}
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
-
-////Lưu id vào bảng tạm
-//function SaveTempId(objName, id) {
-//    var temp = db.getCollection("Temp");
-//    if (temp === null) {
-//        temp = db.addCollection("Temp");
-//    }
-//    if (temp.find().length < 1) {
-//        temp.insert({ [objName]: { Name: objName, HiddenId: id } });
-//    } else {
-//        var hidden = temp.findOne({ '$loki': 1 });
-//        hidden[objName] = {};
-//        hidden[objName].Name = objName;
-//        hidden[objName].HiddenId = id;
-//        temp.update(hidden);
-//    }
-//}
-
-////Kiểm tra id trong bảng tạm
-//function CheckTempId(objName) {
-//    var checker = false;
-//    var temp = db.getCollection("Temp");
-//    if (temp !== null) {
-//        var hidden = temp.findOne({ '$loki': 1 });
-//        if (hidden[objName] !== undefined) {
-//            checker = true;
-//        }
-//    }
-//    return checker;
-//}
-
-////Lấy id khỏi bảng tạm
-//function GetTempId(objName) {
-//    var temp = db.getCollection("Temp");
-//    var tempObj = temp.findOne({ '$loki': 1 });
-//    return tempObj[objName];
-//}
-
-////Xóa id khỏi bảng tạm
-//function RemoveTempId(objName) {
-//    var temp = db.getCollection("Temp");
-//    var tempObj = temp.findOne({ '$loki': 1 });
-//    delete tempObj[objName];
-//}
-
-////Tạo chuỗi tương ứng với modal
-//function TextGenerator(modalId, listValue) {
-//    try {
-//        var data = $("#" + modalId + " *").formToJson();
-//        var listLabel = [];
-//        $.each(data, function (index, value) {
-//            var id = $("#" + modalId).find("[name='" + index + "']").prop("id");
-//            var labeltext = $("#" + modalId).find("label[for='" + id + "']").text();
-//            listLabel.push({ id: id, name: index, label: labeltext });
-//        });
-//        var text = "";
-//        $.each(listLabel, function (index, value) {
-//            var textLabel = listLabel[index].label;
-//            var textValue = listValue[listLabel[index].name];
-//            //if (textValue && textValue.toString().includes("/Date(")) {
-//            //    textValue = moment(textValue).format("DD/MM/YYYY");
-//            //}
-//            if (index === listLabel.length - 1) {
-//                text += "<b>" + textLabel + "</b>: " + "<b style='color:blue'>" + textValue + "</b>";
-//            }
-//            else {
-//                text += "<b>" + textLabel + "</b>: " + "<b style='color:blue'>" + textValue + "</b>, ";
-//            }
-//        });
-//        return text;
-//    } catch (err) {
-//        alertify.warning("tl", err);
-//    }
-//}
-
-//// #endregion
-
-//// #region Thư viện tương tác treeview và select
-
-////OnLoadTreeAndSelect("tree_phongban", "ddlPhongBan", rowData.TenPhong, rowData.NguoiDungPhongId, rowData.KhoaChaId);
-//function OnLoadTreeAndSelect(idTree, idSelect, textSelect, currentNodeId, parentNodeId) {
-//    $("#" + idTree).jstree().deselect_all();
-//    $("#" + idTree).jstree("select_node", "#" + parentNodeId + "");
-//    //disable node tree
-//    $("#" + idTree).jstree("disable_node", "#" + currentNodeId);
-//    TreeAndSelectData.push({ id: currentNodeId, text: $("#" + idTree).jstree("get_text", "#" + currentNodeId) });
-//    var childNodes = $("#" + idTree).jstree("get_node", "#" + currentNodeId).children_d;
-//    $.each(childNodes, function (index, value) {
-//        $("#" + idTree).jstree("disable_node", "#" + value);
-//        TreeAndSelectData.push({ id: value, text: $("#" + idTree).jstree("get_text", "#" + value) });
-//    });
-//    //remove from select
-//    $.each(TreeAndSelectData, function (index, value) {
-//        $("#" + idSelect + " option[value='" + value.id + "']").remove();
-//    });
-
-//    //select parent
-//    if (parentNodeId > 0) {
-//        $("#" + idSelect).val(parentNodeId).change();
-//    }
-//    else {
-//        $("#" + idSelect).val(0).change();
-//    }
-//}
-////OnUnloadTreeAndSelect("tree_phongban", "ddlPhongBan", $("#txtPhongBanIdHidden").val());
-//function OnUnloadTreeAndSelect(idTree, idSelect, currentNodeId) {
-//    //enable node tree
-//    $("#" + idTree).jstree("enable_node", "#" + currentNodeId);
-//    var childNodes = $("#" + idTree).jstree("get_node", "#" + currentNodeId).children_d;
-//    $.each(childNodes, function (index, value) {
-//        $("#" + idTree).jstree("enable_node", "#" + value);
-//    });
-//    //reappend options
-//    if (currentNodeId > 0) {
-//        $.each(TreeAndSelectData, function (index, value) {
-//            var selectoption = new Option(value.text, value.id);
-//            $("#" + idSelect).append(selectoption);
-//        });
-//    }
-//    TreeAndSelectData = [];
-//}
-
+}
 //// #endregion
 
 //reset input trong form, ví dụ: ClearChildrenByType(document.getElementById("processChuSuDung"));
@@ -1178,6 +1472,21 @@ function round(value, precision, isRound) {
         return Math.round(value * multiplier) / multiplier;
     return Math.floor(value * multiplier) / multiplier;
 }
+
+function formValidationErrorPlacement(error, element) {
+    var _popover;
+    _popover = $(element).popover({
+        trigger: "manual",
+        placement: "auto",
+        container: "body",
+        animation: false,
+        content: $(error).text(),
+        template: "<div class='popover'><div class='arrow'></div><div class='popover-inner'><div class='popover-content'><p></p></div></div></div>"
+    });
+    _popover.data("bs.popover").options.content = $(error).text();
+    $(element).popover("show");
+    return setTimeout(function () { $(element).popover("hide"); }, 2000);
+}
 // #endregion
 
 // #region  self invoked anonymous functions
@@ -1442,6 +1751,35 @@ var loopArr = function (arr, options) {
 // #region self invoked anonymous functions with a parameter called "$"
 (function ($) {
 
+    //Vô hiệu hóa modal khi xử lý
+    $.fn.mask = function (text) {
+
+        if (!text) {
+            text = "Đang tải...";
+        }
+
+        var spanMsg = $("<span class='x-mask-msg' style='position: absolute;background-color: #e5e5e5'><i class='fa fa-spin fa-spinner'></i> " + text + "</span>");
+        var divStyle = "text-align: center;z-index: 100;position: absolute;width: 100%;height: 100%;zoom: 1;background: white;opacity: .7;left: 0; top: 0";
+        var mask = $("<div class='x-mask' style='" + divStyle + "'></div>").append(spanMsg);
+
+        var resizeContent = function () {
+            var height = mask.height();
+            var msgHeight = spanMsg.height();
+
+            var marginTopMsg = Math.floor(height / 2) - Math.floor(msgHeight / 2);
+
+            spanMsg.css("margin-top", marginTopMsg + "px");
+        };
+
+        this.append(mask);
+
+        resizeContent();
+    };
+
+    //Bỏ vô hiệu hóa modal khi xử lý
+    $.fn.unmask = function () {
+        this.find(".x-mask").remove();
+    };
     //Kết hợp dữ liệu các phần tử và gộp vào phần tử đầu tiên
     //ví dụ $("CaNhan, DiaChi, GiayToTuyThan").collectData({ stringify: true, object: true });
     $.fn.collectData = function (options) {
@@ -1828,7 +2166,25 @@ $(document).on("select2:open", ".select2", function (evt) {
     $("body > span > span.dynamic-select2").css("z-index", DynamicSelect2);
 });
 
-//bind window resize event
+//bind window events
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    var string = msg.toLowerCase();
+    var substring = "script error";
+    if (string.indexOf(substring) > -1) {
+        alert('Lỗi chưa xác định: Mở cửa sổ console để xem chi tiết');
+    } else {
+        var message = [
+            'Nội dung lỗi: ' + msg,
+            'Tập tin lỗi: ' + url,
+            'Dòng: ' + lineNo,
+            'Cột: ' + columnNo
+        ];
+        JSON.stringify(error) !== "{}" && message.push({ 'Đối tượng lỗi': JSON.stringify(error) });
+        alert(message.join(' \n ') + '\nVui lòng mở cửa sổ console để xem chi tiết.');
+    }
+    return false;
+};
+
 $(window).on("resize", function () {
     centerModal();
 });

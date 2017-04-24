@@ -11,6 +11,13 @@
         <input type="checkbox" name="quotes" id="quotes">
         <label for="quotes">Bọc key bằng ngoặc kép</label>
     </div>
+    <div class="checkbox col-md-3">
+        <input type="checkbox" name="local" id="local">
+        <label for="local">Local</label>
+    </div>
+    <div class="col-md-3">
+        <a id="loadLocal" class="btn btn-primary">Load Local Data</a>
+    </div>
 </div>
 <div class="row">
     <pre id="json-viewer" style="padding:20px"></pre>
@@ -25,30 +32,41 @@
             }
             return true;
         }
-        function activateJsonViewer() {
+        function activateJsonViewer(data) {
             var options = {
                 collapsed: !$('#collapsed').is(':checked'),
                 withQuotes: $('#quotes').is(':checked')
             };
-            $('#json-viewer').jsonViewer(isJSON($(this).val()) ? JSON.parse($(this).val()) : {}, options);
+            if (data === 'DanhMuc') {
+                $('#json-viewer').jsonViewer(getFromLocal(data), options);
+            } else {
+                $('#json-viewer').jsonViewer(isJSON(data) ? JSON.parse(data) : {}, options);
+            }
         }
         $("#json").on({
             keyup: function () {
-                activateJsonViewer();
+                activateJsonViewer($(this).val());
             },
             copy: function () {
-                activateJsonViewer();
+                activateJsonViewer($(this).val());
             },
             paste: function () {
-                activateJsonViewer();
+                activateJsonViewer($(this).val());
             },
             cut: function () {
-                activateJsonViewer();
+                activateJsonViewer($(this).val());
             }
         });
 
         $(':checkbox').change(function () {
-            activateJsonViewer();
+            if (this.id === 'local' && this.checked) {
+                activateJsonViewer('DanhMuc');
+            } else {
+                activateJsonViewer($("#json").val());
+            }
+        });
+        $('#loadLocal').on('click', function (e) {
+            activateJsonViewer('DanhMuc');
         });
     </script>
 }
