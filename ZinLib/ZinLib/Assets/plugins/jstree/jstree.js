@@ -13,7 +13,7 @@
 }(function ($, undefined) {
 	"use strict";
 /*!
- * jsTree 3.3.3
+ * jsTree 3.3.4
  * http://jstree.com/
  *
  * Copyright (c) 2014 Ivan Bozhanov (http://vakata.com)
@@ -54,7 +54,7 @@
 		 * specifies the jstree version in use
 		 * @name $.jstree.version
 		 */
-		version : '3.3.3',
+		version : '3.3.4',
 		/**
 		 * holds all the default options used when creating new instances
 		 * @name $.jstree.defaults
@@ -1114,7 +1114,7 @@
 			return obj.parent;
 		},
 		/**
-		 * get a jQuery collection of all the children of a node (node must be rendered)
+		 * get a jQuery collection of all the children of a node (node must be rendered), returns false on error
 		 * @name get_children_dom(obj)
 		 * @param  {mixed} obj
 		 * @return {jQuery}
