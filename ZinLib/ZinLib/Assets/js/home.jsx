@@ -1,0 +1,1 @@
+ReactDOM.render(<HomeComp />, document.getElementById('main'));

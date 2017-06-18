@@ -1,5 +1,6 @@
 ﻿using System.Web;
 using System.Web.Optimization;
+using System.Web.Optimization.React;
 
 namespace ZinLib
 {
@@ -55,6 +56,9 @@ namespace ZinLib
                         "~/Assets/plugins/tooltipster/js/tooltipster.bundle.min.js",
                         "~/Assets/plugins/json-viewer/jquery.json-viewer.js",
 
+                        "~/Assets/plugins/reactjs/react.min.js",
+                        "~/Assets/plugins/reactjs/react-dom.min.js",
+                        "~/Assets/plugins/reactjs/babel.min.js",
                         "~/Assets/plugins/jquery-autocomplete/jquery.autocomplete.min.js",
                         "~/Assets/plugins/ResizeListener/ResizeListener.js",
                         "~/Assets/plugins/mammoth.js/mammoth.browser.min.js",
@@ -68,10 +72,11 @@ namespace ZinLib
                         "~/Assets/plugins/lokijs/lokijs.js",
                         "~/Assets/plugins/lokijs/loki-indexed-adapter.min.js"
                         ));
-
+            bundles.Add(new BabelBundle("~/reactjs/components").Include(
+                        "~/Assets/js/components.jsx"
+                        ));
             bundles.Add(new StyleBundle("~/js/custom").Include(
-                         "~/Assets/js/zinlib.js",
-                         "~/Assets/js/custom.min.js"
+                         "~/Assets/js/zinlib.js"
                         ));
 
             BundleTable.EnableOptimizations = false;
