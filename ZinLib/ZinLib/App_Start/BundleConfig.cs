@@ -55,9 +55,6 @@ namespace ZinLib
                         "~/Assets/plugins/tooltipster/js/tooltipster.bundle.min.js",
                         "~/Assets/plugins/json-viewer/jquery.json-viewer.js",
 
-                        "~/Assets/plugins/reactjs/react.min.js",
-                        "~/Assets/plugins/reactjs/react-dom.min.js",
-                        "~/Assets/plugins/reactjs/babel.min.js",
                         "~/Assets/plugins/jquery-autocomplete/jquery.autocomplete.min.js",
                         "~/Assets/plugins/ResizeListener/ResizeListener.js",
                         "~/Assets/plugins/mammoth.js/mammoth.browser.min.js",
@@ -71,6 +68,11 @@ namespace ZinLib
                         "~/Assets/plugins/lokijs/lokijs.js",
                         "~/Assets/plugins/lokijs/loki-indexed-adapter.min.js"
                         ));
+            bundles.Add(new ScriptBundle("~/reactjs").Include(
+                       "~/Assets/plugins/reactjs/react.min.js",
+                        "~/Assets/plugins/reactjs/react-dom.min.js",
+                        "~/Assets/plugins/reactjs/babel.min.js"
+                       ));
             bundles.Add(new ScriptBundle("~/reactjs/components/danhmuc").Include(
                         "~/Assets/js/ReactJS/Compiled/DanhMuc/table.js"
                         ));

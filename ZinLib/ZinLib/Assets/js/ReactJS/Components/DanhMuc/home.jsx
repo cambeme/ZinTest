@@ -1,5 +1,4 @@
-﻿
-import React from 'react';
+﻿import React from 'react';
 import ReactDOM from 'react-dom';
 import SearchableTable from './table.jsx';
 const data = [

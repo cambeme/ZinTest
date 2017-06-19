@@ -611,6 +611,14 @@
     <Content Include="Assets\plugins\mammoth.js\mammoth.browser.min.js" />
     <Content Include="Assets\plugins\moment\moment-with-locales.js" />
     <Content Include="Assets\plugins\moment\moment-with-locales.min.js" />
+    <Content Include="Assets\plugins\reactjs\babel.js" />
+    <Content Include="Assets\plugins\reactjs\babel.min.js" />
+    <Content Include="Assets\plugins\reactjs\react-dom.js" />
+    <Content Include="Assets\plugins\reactjs\react-dom.min.js" />
+    <Content Include="Assets\plugins\reactjs\react.js" />
+    <Content Include="Assets\plugins\reactjs\react.min.js" />
+    <Content Include="Assets\plugins\reactjs\remarkable.js" />
+    <Content Include="Assets\plugins\reactjs\remarkable.min.js" />
     <Content Include="Assets\plugins\ResizeListener\ResizeListener.js" />
     <Content Include="Assets\plugins\select2\css\select2.css" />
     <Content Include="Assets\plugins\select2\css\select2.min.css" />

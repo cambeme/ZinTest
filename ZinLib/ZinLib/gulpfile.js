@@ -3,26 +3,21 @@
 var gulp = require('gulp');
 var gutil = require('gulp-util');
 var source = require('vinyl-source-stream');
+var buffer = require('vinyl-buffer');
 var babelify = require('babelify');
+var uglify = require('gulp-uglify');
 var browserify = require('browserify');
+var browserifyshim = require('browserify-shim');
 var notifier = require('node-notifier');
-
-
-// External dependencies you do not want to rebundle while developing,
-// but include in your application deployment
-var dependencies = [
-    'react',
-    'react-dom'
-];
 
 // Gulp tasks
 // ----------------------------------------------------------------------------
 gulp.task('scripts', function () {
-    bundleApp(true);
+    bundleApp();
 });
 
 gulp.task('deploy', function () {
-    bundleApp(true);
+    bundleApp();
 });
 
 gulp.task('watch', function () {
@@ -56,29 +51,32 @@ var reactFiles = {
             to: 'DanhMuc/home.js'
         }
     ],
-    watchPath: ['Assets/js/*.js']
+    watchPath: ['Assets/js/ReactJS/Components/**/*.jsx']
 };
 
 // Private Functions
 // ----------------------------------------------------------------------------
-function bundleApp(isProduction) {
+function bundleApp() {
     // Browserify will bundle all our js files together in to one and will let
     // us use modules in the front end.
     var finished = 0;
     reactFiles.path.map(function (reactModuleEntry) {
         var appBundler = browserify(reactModuleEntry.from)
             .transform(babelify, { presets: ['es2015', 'react'] })
-            .bundle();
-
-        appBundler.pipe(source(reactModuleEntry.to))
+            .transform(browserifyshim)
+            .bundle()
+            .pipe(source(reactModuleEntry.to))
+            .pipe(buffer())
+            .pipe(uglify())
             .pipe(gulp.dest('./Assets/js/ReactJS/Compiled'))
             .on('finish', function () {
                 finished++;
                 if (finished === reactFiles.path.length - 1) {
                     notify('React', 'Build thành công');
-                    //done();
                 }
+            })
+            .on('error', function (err) {
+                notify('React', 'Build thất bại: ' + err.toString());
             });
     });
-
 }

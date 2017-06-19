@@ -7,6 +7,8 @@
     @Styles.Render("~/css/layout")
     @Styles.Render("~/css/plugins")
     @Styles.Render("~/css/custom")
+    @Scripts.Render("~/reactjs")
+    @Scripts.Render("~/reactjs/components/danhmuc")
 </head>
 <body>
     <div class="navbar navbar-inverse @*navbar-fixed-top*@">
@@ -39,7 +41,6 @@
 
     @Scripts.Render("~/js/layout")
     @Scripts.Render("~/js/plugins")
-    @Scripts.Render("~/reactjs/components/danhmuc")
     @Scripts.Render("~/js/custom")
     @RenderSection("scripts", required: false)
 </body>
