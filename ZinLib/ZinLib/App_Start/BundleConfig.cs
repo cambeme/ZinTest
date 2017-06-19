@@ -1,6 +1,5 @@
 ﻿using System.Web;
 using System.Web.Optimization;
-using System.Web.Optimization.React;
 
 namespace ZinLib
 {
@@ -72,10 +71,10 @@ namespace ZinLib
                         "~/Assets/plugins/lokijs/lokijs.js",
                         "~/Assets/plugins/lokijs/loki-indexed-adapter.min.js"
                         ));
-            bundles.Add(new BabelBundle("~/reactjs/components").Include(
-                        "~/Assets/js/components.jsx"
+            bundles.Add(new ScriptBundle("~/reactjs/components/danhmuc").Include(
+                        "~/Assets/js/ReactJS/Compiled/DanhMuc/table.js"
                         ));
-            bundles.Add(new StyleBundle("~/js/custom").Include(
+            bundles.Add(new ScriptBundle("~/js/custom").Include(
                          "~/Assets/js/zinlib.js"
                         ));
 

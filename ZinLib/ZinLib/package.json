@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "name": "asp.net",
+  "dependencies": {
+    "gulp": "3.9.1",
+    "react": "15.6.1",
+    "react-dom": "15.6.1",
+    "browserify": "14.4.0",
+    "vinyl-source-stream": "1.1.0",
+    "gulp-util": "3.0.8",
+    "babelify": "7.3.0",
+    "watchify": "3.9.0",
+    "node-notifier": "5.1.2",
+    "babel-preset-es2015": "6.24.1",
+    "babel-preset-react": "6.24.1"
+  }
+}
