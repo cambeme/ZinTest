@@ -27,7 +27,7 @@ gulp.task('deploy', function () {
 
 gulp.task('watch', function () {
     gulp.watch([
-        './Assets/js/ReactJS/Components/**/*.js'
+        './Assets/js/ReactJS/Components/**/*.jsx'
     ], ['scripts']);
 });
 
@@ -48,11 +48,11 @@ gulp.task('default', ['scripts', 'watch']);
 var reactFiles = {
     path: [
         {
-            from: ['Assets/js/ReactJS/Components/DanhMuc/table.js'],
+            from: ['Assets/js/ReactJS/Components/DanhMuc/table.jsx'],
             to: 'DanhMuc/table.js'
         },
         {
-            from: ['Assets/js/ReactJS/Components/DanhMuc/home.js'],
+            from: ['Assets/js/ReactJS/Components/DanhMuc/home.jsx'],
             to: 'DanhMuc/home.js'
         }
     ],

@@ -247,8 +247,8 @@
     <Content Include="Assets\fonts\open-sans\open-sans-v13-cyrillic_latin_cyrillic-ext_latin-ext_vietnamese_greek-ext_greek-regular.woff" />
     <Content Include="Assets\fonts\open-sans\open-sans-v13-cyrillic_latin_cyrillic-ext_latin-ext_vietnamese_greek-ext_greek-regular.woff2" />
     <Content Include="Assets\js\layout.js" />
-    <Content Include="Assets\js\ReactJS\Components\DanhMuc\home.js" />
-    <Content Include="Assets\js\ReactJS\Components\DanhMuc\table.js" />
+    <Content Include="Assets\js\ReactJS\Components\DanhMuc\home.jsx" />
+    <Content Include="Assets\js\ReactJS\Components\DanhMuc\table.jsx" />
     <Content Include="Assets\js\zinlib.js" />
     <Content Include="Assets\plugins\awesome-bootstrap-checkbox\awesome-bootstrap-checkbox.css" />
     <Content Include="Assets\plugins\bootstrap\css\bootstrap-theme.css" />

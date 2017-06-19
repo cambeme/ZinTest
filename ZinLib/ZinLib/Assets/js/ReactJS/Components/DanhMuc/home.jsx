@@ -1,7 +1,7 @@
 ﻿
 import React from 'react';
 import ReactDOM from 'react-dom';
-import SearchableTable from './table';
+import SearchableTable from './table.jsx';
 const data = [
     { category: "Hàng thể thao", price: "$49.99", stocked: true, name: "Đá banh" },
     { category: "Hàng thể thao", price: "$9.99", stocked: true, name: "Bóng chày" },
