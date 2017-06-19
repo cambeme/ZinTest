@@ -37,7 +37,7 @@ namespace ZinLib
                         "~/Assets/js/layout.js"));
 
             bundles.Add(new ScriptBundle("~/js/plugins").Include(
-                        "~/Assets/plugins/jquery/jquery-2.2.4.min.js",
+                        //"~/Assets/plugins/jquery/jquery-2.2.4.min.js",
                         //"~/Assets/plugins/jquery/jquery-3.2.1.min.js",
                         //"~/Assets/plugins/jquery/jquery-migrate-3.0.0.js",
                         "~/Assets/plugins/jquery.initialize/jquery.initialize.min.js",

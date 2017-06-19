@@ -10,5 +10,4 @@ const data = [
     { category: "Điện gia dụng", price: "$199.99", stocked: true, name: "Nexus 9" }
 ];
 
-// Filterable CheatSheet Component
-ReactDOM.render( <SearchableTable data={data}/>, document.getElementById('searchableTable') );
+ReactDOM.render(<SearchableTable data={data} />, document.getElementById('searchableTable'));
