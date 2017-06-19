@@ -75,7 +75,7 @@ function bundleApp(isProduction) {
             .on('finish', function () {
                 finished++;
                 if (finished === reactFiles.path.length - 1) {
-                    notify('Reactify', 'Build thành công');
+                    notify('React', 'Build thành công');
                     //done();
                 }
             });

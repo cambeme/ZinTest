@@ -24,6 +24,7 @@ export default class SearchableTable extends React.Component {
         );
     }
 }
+SearchableTable.displayName = 'SearchableTable';
 
 class SearchBar extends React.Component {
     handleChange() {
@@ -45,6 +46,7 @@ class SearchBar extends React.Component {
         );
     }
 }
+SearchBar.displayName = 'SearchBar';
 
 class Table extends React.Component {
     render() {
@@ -61,6 +63,7 @@ class Table extends React.Component {
         );
     }
 }
+Table.displayName = 'Table';
 
 class Section extends React.Component {
     render() {
@@ -71,3 +74,4 @@ class Section extends React.Component {
         );
     }
 }
+Section.displayName = 'Section';
