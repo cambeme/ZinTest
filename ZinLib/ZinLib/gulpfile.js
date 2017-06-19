@@ -1,12 +1,12 @@
 ﻿// declarations, dependencies
 // ----------------------------------------------------------------------------
 var gulp = require('gulp');
-var source = require('vinyl-source-stream');
 var gutil = require('gulp-util');
-var notifier = require('node-notifier');
+var source = require('vinyl-source-stream');
 var babelify = require('babelify');
 var browserify = require('browserify');
-var watchify = require('watchify');
+var notifier = require('node-notifier');
+
 
 // External dependencies you do not want to rebundle while developing,
 // but include in your application deployment
