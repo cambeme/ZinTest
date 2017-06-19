@@ -1,14 +1,14 @@
-
+﻿
 import React from 'react';
 import ReactDOM from 'react-dom';
 import SearchableTable from './table';
 const data = [
-    { category: "Sporting Goods", price: "$49.99", stocked: true, name: "Football" },
-    { category: "Sporting Goods", price: "$9.99", stocked: true, name: "Baseball" },
-    { category: "Sporting Goods", price: "$29.99", stocked: false, name: "Basketball" },
-    { category: "Electronics", price: "$99.99", stocked: true, name: "iPod Touch" },
-    { category: "Electronics", price: "$399.99", stocked: false, name: "iPhone 5" },
-    { category: "Electronics", price: "$199.99", stocked: true, name: "Nexus 7" }
+    { category: "Hàng thể thao", price: "$49.99", stocked: true, name: "Đá banh" },
+    { category: "Hàng thể thao", price: "$9.99", stocked: true, name: "Bóng chày" },
+    { category: "Hàng thể thao", price: "$29.99", stocked: false, name: "Bóng rổ" },
+    { category: "Điện gia dụng", price: "$99.99", stocked: true, name: "iPod Touch" },
+    { category: "Điện gia dụng", price: "$399.99", stocked: false, name: "iPhone 5" },
+    { category: "Điện gia dụng", price: "$199.99", stocked: true, name: "Nexus 9" }
 ];
 
 // Filterable CheatSheet Component

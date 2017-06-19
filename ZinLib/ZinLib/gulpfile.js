@@ -27,7 +27,7 @@ gulp.task('deploy', function () {
 
 gulp.task('watch', function () {
     gulp.watch([
-        './Assets/js/*.js'
+        './Assets/js/ReactJS/Components/**/*.js'
     ], ['scripts']);
 });
 
