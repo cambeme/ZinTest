@@ -13,7 +13,7 @@ const data = [
 var myComps = (
     <div>
         <SearchableTable data={data} />
-        <Button bsStyle="primary">Nút nè</Button>
+        <Button bsStyle="primary">Xử lý</Button>
     </div>
 );
 ReactDOM.render(myComps, document.getElementById('searchableTable'));
