@@ -613,12 +613,12 @@
     <Content Include="Assets\plugins\moment\moment-with-locales.min.js" />
     <Content Include="Assets\plugins\reactjs\babel.js" />
     <Content Include="Assets\plugins\reactjs\babel.min.js" />
+    <Content Include="Assets\plugins\reactjs\plugins\react-bootstrap\react-bootstrap.js" />
+    <Content Include="Assets\plugins\reactjs\plugins\react-bootstrap\react-bootstrap.min.js" />
     <Content Include="Assets\plugins\reactjs\react-dom.js" />
     <Content Include="Assets\plugins\reactjs\react-dom.min.js" />
     <Content Include="Assets\plugins\reactjs\react.js" />
     <Content Include="Assets\plugins\reactjs\react.min.js" />
-    <Content Include="Assets\plugins\reactjs\remarkable.js" />
-    <Content Include="Assets\plugins\reactjs\remarkable.min.js" />
     <Content Include="Assets\plugins\ResizeListener\ResizeListener.js" />
     <Content Include="Assets\plugins\select2\css\select2.css" />
     <Content Include="Assets\plugins\select2\css\select2.min.css" />
@@ -1174,6 +1174,7 @@
     <Content Include="Assets\plugins\jstree\libs\bootstrap\fonts\glyphicons-halflings-regular.eot" />
     <Content Include="Assets\plugins\jstree\libs\bootstrap\fonts\glyphicons-halflings-regular.ttf" />
     <Content Include="Assets\plugins\jstree\libs\bootstrap\fonts\glyphicons-halflings-regular.woff" />
+    <Content Include="Assets\plugins\reactjs\plugins\react-bootstrap\react-bootstrap.min.js.map" />
     <None Include="bundleconfig.json" />
     <Content Include="package.json" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />

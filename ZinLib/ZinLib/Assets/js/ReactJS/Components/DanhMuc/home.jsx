@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import ReactDOM from 'react-dom';
 import SearchableTable from './table.jsx';
+import { Button } from 'react-bootstrap';
 const data = [
     { category: "Hàng thể thao", price: "$49.99", stocked: true, name: "Đá banh" },
     { category: "Hàng thể thao", price: "$9.99", stocked: true, name: "Bóng chày" },
@@ -9,5 +10,10 @@ const data = [
     { category: "Điện gia dụng", price: "$399.99", stocked: false, name: "iPhone 5" },
     { category: "Điện gia dụng", price: "$199.99", stocked: true, name: "Nexus 9" }
 ];
-
-ReactDOM.render(<SearchableTable data={data} />, document.getElementById('searchableTable'));
+var myComps = (
+    <div>
+        <SearchableTable data={data} />
+        <Button bsStyle="primary">Nút nè</Button>
+    </div>
+);
+ReactDOM.render(myComps, document.getElementById('searchableTable'));

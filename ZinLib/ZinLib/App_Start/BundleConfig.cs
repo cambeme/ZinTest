@@ -71,6 +71,7 @@ namespace ZinLib
             bundles.Add(new ScriptBundle("~/reactjs").Include(
                        "~/Assets/plugins/reactjs/react.min.js",
                         "~/Assets/plugins/reactjs/react-dom.min.js",
+                        "~/Assets/plugins/reactjs/plugins/react-bootstrap/react-bootstrap.min.js",
                         "~/Assets/plugins/reactjs/babel.min.js"
                        ));
             bundles.Add(new ScriptBundle("~/reactjs/components/danhmuc").Include(
