@@ -12,2123 +12,183 @@
 // released into the public.
 
 // #region global vars
+var GLOBAL = {
+    linkRoot: _WEB_URL,
+    CurrentUser: null,
+    LoadHuyen: function (tinhId, control, valueSelected) {
+        DanhMucAjax.GetDistrictByProvinceId(tinhId, function (data) {
+            if (control[0].getAttribute("data-dontshow-caption") !== "1") {
+                data.value.unshift({
+                    huyenId: 0,
+                    ten: '--- Chọn Quận/Huyện ---'
+                });
+            }
 
-var $linkRoot = window.location.protocol + "//" + location.host;
-var pgurl = window.location.href.substr(window.location.href.lastIndexOf("/") + 1);
-var DynamicSelect2 = 4;
-var CustomSearch = false;
-var TreeAndSelectData = [];
-var CurrentForm, CurrentScript;
-var validateOptions = {
-    errorPlacement: function (error, element) {
-        formValidationErrorPlacement(error, element);
+            var options = data.value.map(item => '<option value="' + item.huyenId + '" ' + ((item.huyenId == 0) ? "selected" : "") + '>' + item.ten + '</option>');
+            if (valueSelected || GLOBAL.CurrentUser) {
+                options = data.value.map(function (item) {
+                    var selected = false;
+                    if (valueSelected && item.huyenId == parseInt(valueSelected)) {
+                        selected = true;
+                    }
+                    //else if (GLOBAL.CurrentUser.Xa && GLOBAL.CurrentUser.Huyen.huyenId == item.huyenId) {
+                    //    selected = true;
+                    //}
+                    return '<option value="' + item.huyenId + '" ' + ((selected) ? "selected" : "") + '>' + item.ten + '</option>'
+                });
+            }
+            control.empty().append(options);
+            control.trigger('change');
+        });
     },
-    success: function (label, element) {
-        $(element).popover("hide");
-    }
-};
-var wizardOptions = {
-    theme: "arrows",
-    keyNavigation: false,
-    useURLhash: false,
-    showStepURLhash: false,
-    autoAdjustHeight: false,
-    transitionEffect: 'fade',
-    lang: {
-        next: 'Bước sau',
-        previous: 'Bước trước'
+    LoadXa: function (huyenId, control, valueSelected) {
+        DanhMucAjax.GetWardByDistrictId(huyenId, function (data) {
+            if (control[0].getAttribute("data-dontshow-caption") !== "1") {
+                data.value.unshift({
+                    xaId: 0,
+                    ten: '--- Chọn Phường/Xã ---'
+                });
+            }
+
+            var options = data.value.map(item => '<option value="' + item.xaId + '" ' + ((item.xaId == 0) ? "selected" : "") + '>' + item.ten + '</option>');
+            if (valueSelected || GLOBAL.CurrentUser) {
+                options = data.value.map(function (item) {
+                    var selected = false;
+                    if (valueSelected && item.xaId == parseInt(valueSelected)) {
+                        selected = true;
+                    }
+                    //else if (GLOBAL.CurrentUser.Xa && GLOBAL.CurrentUser.Xa.xaId == item.xaId) {
+                    //    selected = true;
+                    //}
+                    return '<option value="' + item.xaId + '" ' + ((selected) ? "selected" : "") + '>' + item.ten + '</option>'
+                });
+            }
+            control.empty().append(options);
+            control.trigger('change');
+        });
     },
-    toolbarSettings: {
-        toolbarPosition: "bottom",
-        toolbarExtraButtons: [
-            $('<a class="btn btn-primary hover-effect" id="btnHoanTatBienDong" style="display:none"><i class="fa fa-save"></i> Hoàn tất</a>'),
-            $('<a class="btn btn-default hover-effect" data-dismiss="modal" id="btnDongBienDong"><i class="fa fa-remove"></i> Đóng</a>')
-        ]
+    waitAll: 0,
+    isAjaxFailed: false,
+    ajaxInvoke: false,
+    dynamicSelect2zIndex: 4,
+    callAjax: function (url, data, callback, options) {
+        var contentType = null;
+        var dataType = null;
+        if (!options || (options && options.requestType !== 'form')) {
+            contentType = 'application/json; charset=utf-8';
+            dataType = 'json';
+        }
+        var jqxhr = $.ajax({
+            url: GLOBAL.linkRoot + url,
+            type: 'POST',
+            contentType: contentType,
+            dataType: dataType,
+            data: data ? JSON.stringify(data) : null
+        }).always((dataORjqXHR, textStatus, jqXHRORerrorThrown) => {
+            processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback, options);
+        });
     },
-};
-// #endregion
-
-// #region database
-var dbAdapter = new LokiIndexedAdapter("DATABASE");
-var localDB = new loki("LOCALDATA", {
-    verbose: true,
-    autosave: true,
-    autosaveInterval: 0,
-    autoload: true,
-    adapter: dbAdapter,
-    autoloadCallback: function () {
-        if (typeof DanhMucAjax !== 'undefined') {
-            DanhMucAjax.GetAllDanhMuc('check');
+    validateOptions: {
+        errorPlacement: function (error, element) {
+            formValidationErrorPlacement(error, element);
+        },
+        success: function (label, element) {
+            $(element).popover("hide");
         }
-
-        //if (db.getCollection("ThuaDat") && db.getCollection("ThuaDat").find().length > 0) {
-        //    alertify.alert("Dữ liệu phiên làm việc trước vẫn còn, bạn có muốn khôi phục?", {
-        //        "Khôi phục": function () {
-        //            $.each(["ThuaDat", "ListDiaChi", "ListMucDichSuDung", "ListNguonGocSuDungDat"], function (index, value) {
-        //                if (value.startsWith("List")) {
-        //                    GetData(value, "mdlChiTiet" + value.substring(4));
-        //                } else {
-        //                    GetData(value, "mdlChiTiet" + value);
-        //                }
-        //                RemoveTempId(value);
-        //            });
-        //            alertify.success("tl", "Khôi phục thành công");
-        //        },
-        //        "Xóa": function () {
-        //            try {
-        //                $.each(["ThuaDat", "ListDiaChi", "ListMucDichSuDung", "ListNguonGocSuDungDat"], function (index, value) {
-        //                    var collection = db.getCollection(value);
-        //                    if (collection !== null) {
-        //                        collection.remove(collection.find());
-        //                    }
-        //                    db.removeCollection(value);
-        //                });
-        //                alertify.success("tl", "Xóa thành công");
-        //            } catch (err) {
-        //                alertify.warning("tl", err);
-        //            }
-        //        }
-        //    });
-        //}
-    }
-});
-// #endregion
-
-// #region thư viện VBDLIS
-var URL_OU_DEFAULT = "/root/ims/vbd/users/vanphongdatdai/";
-var VBDLIS = {
-    Global: {
-        LoaiBienDong: {
-            BANNHA: { ma: 'BN', ten: 'Chủ đầu tư xây dựng nhà chung cư bán căn hộ và làm thủ tục đăng ký biến động đợt đầu' },
-            BOSUNGTAISAN: { ma: 'BTS', ten: 'Bổ sung tài sản' },
-            CHUYENDOIQUYEN: { ma: 'CD', ten: 'Chuyển đổi quyền sử dụng đất' },
-            CAPLAIGCN: { ma: 'CL', ten: 'Cấp lại giấy chứng nhận quyền sử dụng đất' },
-            CHUYENMUCDICHSUDUNG: { ma: 'CM', ten: 'Chuyển loại đất sử dụng, chuyển mục đích sử dụng' },
-            CHUYENMUCDICHTACH: { ma: 'CMT', ten: 'Chuyển mục đích có tách thửa' },
-            CHUYENNHUONGQUYEN: { ma: 'CN', ten: 'Chuyển nhượng quyền sử dụng đất' },
-            CHUYENNHUONGNHA: { ma: 'CNN', ten: 'Chuyển nhượng nhà' },
-            CHUYENCONGTY: { ma: 'CP', ten: 'Trường hợp chuyển đổi công ty; chia, tách, hợp nhất, sáp nhập doanh nghiệp' },
-            CHUYENQUYENMOTPHAN: { ma: 'CQM', ten: 'Chuyển quyền và chuyển mục đích một phần thửa' },
-            CHUYENQUYENTRONTHUA: { ma: 'CQT', ten: 'Chuyển quyền và chuyển mục đích trọn thửa' },
-            CHOTHUEDAT: { ma: 'CT', ten: 'Cho thuê đất, cho thuê lại đất' },
-            CHINHLYTS: { ma: 'CLS', ten: 'Chỉnh lý thông tin tài sản' },
-            CHUYENCANHAN: { ma: 'DC', ten: 'Chuyển đổi hộ gia đình, cá nhân sử dụng đất thành tổ chức kinh tế của hộ gia đình cá nhân đó mà không thuộc trường hợp chuyển nhượng quyền sử dụng đất, quyền sở hữu tài sản gắn liền với đất' },
-            DINHCHINHGCN: { ma: 'DCN', ten: 'Đính chính nội dung giấy chứng nhận' },
-            CHUYENQUYENDAUGIA: { ma: 'DG', ten: 'Chuyển quyền sử dụng đất, tài sản gắn liền với đất theo kết quả đấu giá đất' },
-            THAYDOIHANHCHINH: { ma: 'DH', ten: 'Thay đổi tên đơn vị hành chính, điều chỉnh địa giới hành chính. Thay đổi tên đơn vị hành chính, điều chỉnh địa giới hành chính theo quyết định của cơ quan nhà nước có thẩm quyền' },
-            CHINHLYTENCSD: { ma: 'DT', ten: 'Chỉnh lý tên chủ sử dụng' },
-            CHUYENQUYENTOAAN: { ma: 'GA', ten: 'Chuyển quyền theo QĐ của tòa án, QĐ của cơ quan thi hành án' },
-            GIAODAT: { ma: 'GD', ten: 'Giao đất' },
-            THAYDOITHOIHANSUDUNG: { ma: 'GH', ten: 'Thay đổi thời hạn sử dụng' },
-            CHUYENQUYENKIEUNAI: { ma: 'GK', ten: 'Chuyển quyền theo QĐ hành chính giải quyết khiếu nại, tố cáo về đất đai của UBND cấp có thẩm quyền' },
-            GOPVONQUYEN: { ma: 'GP', ten: 'Góp vốn bằng quyền sử dụng đất, tài sản gắn liền với đất' },
-            CHUYENQUYENTRANHCHAP: { ma: 'GT', ten: 'Chuyển quyền sử dụng đất, tài sản gắn liền với đất theo kết quả giải quyết tranh chấp đất đai' },
-            GOPVONGIATRI: { ma: 'GV', ten: 'Góp vốn bằng giá trị quyền sử dụng đất' },
-            HANCHEQUYEN: { ma: 'HC', ten: 'Hạn chế về quyền sử dụng đất' },
-            THAYDOITHUA: { ma: 'HD', ten: 'Thay đổi hình dạng thửa. Thay đổi vị trí góc thửa' },
-            THAYDOILIENKE: { ma: 'LK', ten: 'Xác lập hoặc thay đổi, chấm dứt quyền sử dụng hạn chế thửa đất liền kề' },
-            THIENTAI: { ma: 'SA', ten: 'Biến động do thiên tai' },
-            SAISOT: { ma: 'SN', ten: 'Phát hiện có sai sót, nhầm lẫn về nội dung thông tin trong hồ sơ địa chính và trên Giấy chứng nhận' },
-            CHOTANG: { ma: 'TA', ten: 'Cho tặng' },
-            CHOTANGNHA: { ma: 'TAN', ten: 'Cho tặng nhà' },
-            THECHAPQUYEN: { ma: 'TC', ten: 'Thế chấp quyền sử dụng đất' },
-            THECHAPNHA: { ma: 'TCN', ten: 'Thế chấp nhà' },
-            QUYDOITHUA: { ma: 'TCQ', ten: 'Quy đổi số thửa tạm sang số thửa chính quy' },
-            THAYDOIDODAC: { ma: 'TD', ten: 'Trường hợp đo đạc lại thửa đất mà có thay đổi diện tích, số hiệu thửa đất, số hiệu tờ bản đồ' },
-            THUESANGGIAO: { ma: 'TG', ten: 'Chuyển từ hình thức được Nhà nước cho thuê đất sang giao đất có thu tiền' },
-            THUHOIDAT: { ma: 'TH', ten: 'Thu hồi đất, thu hồi giấy chứng nhận quyền sử dụng đất' },
-            THUAKEQUYEN: { ma: 'TK', ten: 'Thừa kế quyền sử dụng đất' },
-            THUAKENHA: { ma: 'TKN', ten: 'Thừa kế nhà' },
-            THUELAI: { ma: 'TL', ten: 'Doanh nghiệp đầu tư hạ tầng trong khu công nghiệp, cụm công nghiệp, khu chế xuất, khu công nghệ cao, khu kinh tế cho thuê, cho thuê lại đất' },
-            THAYDOIDAT: { ma: 'TM', ten: 'Thay đổi số thứ tự thửa đất và số thứ tự tờ bản đồ' },
-            TACHGOP: { ma: 'TN', ten: 'Gộp thửa, tách thửa' },
-            CHIAQUYEN: { ma: 'TQ', ten: 'Hợp nhất hoặc phân chia quyền sử dụng đất, tài sản gắn liền với đất của hộ gia đình cho thành viên hộ gia đình hoặc của nhóm người cùng sở hữu, sử dụng cho thành viên nhóm người đó theo thoả thuận hoặc theo quy định của pháp luật' },
-            THAYDOITAISAN: { ma: 'TS', ten: 'Thay đổi thông tin về tài sản gắn liền với đất đã ghi trên Giấy chứng nhận hoặc đã thể hiện trong cơ sở dữ liệu' },
-            THUOCTINH: { ma: 'TT', ten: 'Chỉnh lý thuộc tính thửa' },
-            VOCHONG: { ma: 'VC', ten: 'Hợp nhất hoặc phân chia quyền sử dụng đất, quyền sở hữu nhà ở và tài sản khác gắn liền với đất của vợ hoặc của chồng thành của chung hai vợ, chồng' },
-            XOATHECHAPQUYEN: { ma: 'XC', ten: 'Xoá thế chấp quyền sử dụng đất' },
-            XOATHECHAPNHA: { ma: 'XCN', ten: 'Xóa thế chấp nhà' },
-            CHUYENQUYENXYLYNO: { ma: 'XN', ten: 'Chuyển quyền sử dụng đất, tài sản gắn liền với đất theo thỏa thuận xử lý nợ thế chấp' },
-            KETTHUCCHOTHUE: { ma: 'XT', ten: 'Kết thúc cho thuê đất, kết thúc cho thuê lại đất' },
-            CHAMDUTGOPVON: { ma: 'XV', ten: 'Chấm dứt góp vốn bằng giá trị quyền sử dụng đất' },
-            BIENDOITHUA: { ma: 'XX', ten: 'Biến động do dồn điền đổi thửa' }
-        },
-        EnumBienDong: {
-            CapGiayLanDau: 0,
-            ChuyenQuyen: 1,
-            TachThua: 2,
-            GopThua: 3,
-            TheChap: 4,
-            XoaTheChap: 5,
-            BoSungTaiSan: 6,
-            CapDoi: 7,
-            GiaoThueNhaNuoc: 8,
-            GiaoThueCaNhan: 9,
-            ChuyenMucDichSuDung: 10,
-            DinhChinhGiayChungNhan: 11,
-            KetThucChoThue: 12,
-            ChuyenHinhThucGiaoThue: 13,
-            GiaHanSuDungDat: 14,
-            ThuHoiGiayChungNhan: 15,
-            ChoThueLai: 16,
-            HanCheQuyen: 17,
-            HanCheThuaLienKe: 18,
-            TachThuaChuyenQuyen: 19
-        },
-        treeTypes: {
-            CANHAN: {
-                icon: "fa fa-user"
-            },
-            CANHO: {
-                icon: "fa fa-university"
-            },
-            CAYLAUNAM: {
-                icon: "fa fa-map-pin"
-            },
-            CHUSOHUU: {
-                icon: "fa fa-child"
-            },
-            CHUSUDUNG: {
-                icon: "fa fa-child"
-            },
-            CONGDONG: {
-                icon: "fa fa-connectdevelop"
-            },
-            CONGTRINHNGAM: {
-                icon: "fa fa-industry"
-            },
-            CONGTRINHXAYDUNG: {
-                icon: "fa fa-legal"
-            },
-            HANGMUCCONGTRINH: {
-                icon: "fa fa-navicon"
-            },
-            DIACHI: {
-                icon: "fa fa-address-book"
-            },
-            DONDANGKY: {
-                icon: "fa fa-id-card"
-            },
-            TINHHINHDANGKY: {
-                icon: "fa fa-id-card"
-            },
-            HOPDONG: {
-                icon: "fa fa-handshake-o"
-            },
-            QUYETDINH: {
-                icon: "fa fa-glass"
-            },
-            GIAYCHUNGNHAN: {
-                icon: "fa fa-list-alt"
-            },
-            GIAYTOTOCHUC: {
-                icon: "fa fa-briefcase"
-            },
-            GIAYTOTUYTHAN: {
-                icon: "fa fa-photo"
-            },
-            HANCHETHUALIENKE: {
-                icon: "fa fa-ban"
-            },
-            VANBANBANHANH: {
-                icon: "fa fa-newspaper-o"
-            },
-            HOGIADINH: {
-                icon: "fa fa-group"
-            },
-            KHUCHUNGCU: {
-                icon: "fa fa-map"
-            },
-            LIENKETTAISANTHUADAT: {
-                icon: "fa fa-cubes"
-            },
-            LOGIAYCHUNGNHAN: {
-                icon: "fa fa-database"
-            },
-            MUCDICHSUDUNG: {
-                icon: "fa fa-flag"
-            },
-            NGUONGOCSUDUNGDAT: {
-                icon: "fa fa-filter"
-            },
-            HANGMUCSOHUUCHUNG: {
-                icon: "fa fa-gears"
-            },
-            NHACHUNGCU: {
-                icon: "fa fa-building"
-            },
-            HANGMUCNHARIENGLE: {
-                icon: "fa fa-id-badge"
-            },
-            NHARIENGLE: {
-                icon: "fa fa-home"
-            },
-            RUNG: {
-                icon: "fa fa-braille"
-            },
-            RUNGTRONG: {
-                icon: "fa fa-braille"
-            },
-            TAISAN: {
-                icon: "fa fa-money"
-            },
-            THANHVIENHOGIADINH: {
-                icon: "fa fa-heart"
-            },
-            THUADAT: {
-                icon: "fa fa-square"
-            },
-            TOCHUC: {
-                icon: "fa fa-sitemap"
-            },
-            VOCHONG: {
-                icon: "fa fa-female"
-            },
-        },
-        listThongTinDangKy: [],
-        duLieuBienDong: {},
-        waitAll: 0,
-        isAjaxFailed: false,
-        ajaxInvoke: false
     },
-    VModule: {},
-    DanhMuc: {},
-    BienDong: {},
-    SaveLocal: {
-        //Chủ sử dụng
-        //CANHAN
-        CaNhan: function (caNhan) {
-            if (!caNhan) return null;
-
-            if (!caNhan.caNhanId) {
-                caNhan.caNhanId = 0 - new Date().getTime();
-            }
-
-
-            if (caNhan.ListGiayToTuyThan) {
-                caNhan.ListGiayToTuyThan.forEach((item, index) => {
-                    item.caNhanId = caNhan.caNhanId;
-
-                    if (!item.giayToTuyThanId) {
-                        item.giayToTuyThanId = 0 - (index + 1);
-                    }
-
-                });
-            }
-
-            if (caNhan.ListDiaChi) {
-                caNhan.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-                    item.itemId = caNhan.caNhanId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("CANHAN");
-                });
-            }
-            return caNhan;
+    wizardOptions: {
+        theme: "arrows",
+        keyNavigation: false,
+        useURLhash: false,
+        showStepURLhash: false,
+        autoAdjustHeight: false,
+        transitionEffect: 'fade',
+        lang: {
+            next: 'Bước sau',
+            previous: 'Bước trước'
         },
-        //VOCHONG
-        VoChong: function (voChong) {
-            if (!voChong) return null;
-            if (!voChong.voChongId) {
-                voChong.voChongId = 0 - new Date().getTime();
-            }
-
-            voChong.voId = voChong.Vo.caNhanId;
-            voChong.chongId = voChong.Chong.caNhanId;
-
-            return voChong;
-        },
-        //HOGIADINH
-        HoGiaDinh: function (hoGiaDinh) {
-            if (!hoGiaDinh) return null;
-
-            if (!hoGiaDinh.hoGiaDinhId) {
-                hoGiaDinh.hoGiaDinhId = 0 - new Date().getTime();
-            }
-
-            if (hoGiaDinh.ChuHo != null) {
-                hoGiaDinh.chuHoId = hoGiaDinh.ChuHo.caNhanId;
-            }
-
-            if (hoGiaDinh.VoChong != null) {
-                hoGiaDinh.voChongChuHoId = hoGiaDinh.VoChong.voChongId;
-            }
-
-            if (hoGiaDinh.ListDiaChi) {
-                hoGiaDinh.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-                    item.itemId = hoGiaDinh.hoGiaDinhId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("HOGIADINH");
-                });
-            }
-
-            if (hoGiaDinh.ListThanhVienHoGiaDinh) {
-                hoGiaDinh.ListThanhVienHoGiaDinh.forEach((thanhVien, index) => {
-                    if (!thanhVien.thanhVienHoGiaDinhId) {
-                        thanhVien.thanhVienHoGiaDinhId = 0 - (index + 1);
-                    }
-                    thanhVien.hoGiaDinhId = hoGiaDinh.hoGiaDinhId;
-                    thanhVien.caNhanId = thanhVien.CaNhan.caNhanId;
-                });
-
-            }
-
-            return hoGiaDinh;
-        },
-        //CONGDONG
-        CongDong: function (congDong) {
-            if (!congDong) return null;
-
-            if (!congDong.congDongId) {
-                congDong.congDongId = 0 - new Date().getTime();
-            }
-
-            if (congDong.NguoiDaiDien != null) {
-                congDong.nguoiDaiDienId = congDong.NguoiDaiDien.caNhanId;
-            }
-
-            if (congDong.ListDiaChi) {
-                congDong.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId){
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = congDong.congDongId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("CONGDONG");
-                });
-            }
-
-            return congDong;
-        },
-        //TOCHUC
-        ToChuc: function (toChuc) {
-            if (!toChuc) return null;
-
-            if (!toChuc.toChucId) {
-                toChuc.toChucId = 0 - new Date().getTime();
-            }
-
-            if (toChuc.NguoiDaiDien != null) {
-                toChuc.nguoiDaiDienId = toChuc.NguoiDaiDien.caNhanId;
-            }
-
-            if (toChuc.ListGiayToBoSung) {
-                toChuc.ListGiayToBoSung.forEach((item, index) => {
-                    if (!item.giayToToChucId) {
-                        item.giayToToChucId = 0 - (index + 1);
-                    }
-
-                    item.toChucId = toChuc.toChucId;
-                });
-            }
-
-            if (toChuc.ListDiaChi) {
-                toChuc.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = toChuc.toChucId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("TOCHUC");
-                });
-            }
-        },
-
-        //Tài sản
-        ThuaDat: function (thuaDat) {
-            if (!thuaDat) return null;
-
-            if (!thuaDat.thuaDatId) {
-                thuaDat.thuaDatId = 0 - new Date().getTime();
-            }
-
-
-            if (thuaDat.ListDiaChi) {
-                thuaDat.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = thuaDat.thuaDatId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("THUADAT");
-                });
-            }
-
-            if (thuaDat.ListMucDichSuDung) {
-                thuaDat.ListMucDichSuDung.forEach((mucDich, index) => {
-                    if (!mucDich.mucDichSuDungId) {
-                        mucDich.mucDichSuDungId = 0 - (index + 1);
-                    }
-
-                    mucDich.thuaDatId = thuaDat.thuaDatId;
-                });
-            }
-
-            if (thuaDat.TaiLieuDoDac) {
-                if (!thuaDat.TaiLieuDoDac.taiLieuDoDacId) {
-                    thuaDat.TaiLieuDoDac.taiLieuDoDacId = 0 - 1;
-                }
-
-                thuaDat.TaiLieuDoDac.thuaDatId = thuaDat.thuaDatId;
-            }
-
-            return thuaDat;
-        },
-
-        NhaRiengLe: function (nhaRiengLe) {
-            if (!nhaRiengLe) return null;
-
-            if (!nhaRiengLe.nhaRiengLeId) {
-                nhaRiengLe.nhaRiengLeId = 0 - new Date().getTime();
-            }
-
-            if (nhaRiengLe.ListDiaChi) {
-                nhaRiengLe.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = nhaRiengLe.nhaRiengLeId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("NHARIENGLE");
-                });
-            }
-
-            if (nhaRiengLe.ListHangMucNhaRiengLe) {
-                nhaRiengLe.ListHangMucNhaRiengLe.forEach((item, index) => {
-                    if (!item.hangMucNhaRiengLeId) {
-                        item.hangMucNhaRiengLeId = 0 - (index + 1);
-                    }
-
-                    item.nhaRiengLeId = nhaRiengLe.nhaRiengLeId;
-                });
-            }
-
-            if (nhaRiengLe.ListThuaLienKet) {
-                nhaRiengLe.ListThuaLienKet.forEach((item, index) => {
-                    if (!item.lienKetTaiSanThuaDatId) {
-                        item.lienKetTaiSanThuaDatId = 0 - (index + 1);
-                    }
-
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("NHARIENGLE");
-                    item.itemId = nhaRiengLe.nhaRiengLeId;
-                })
-            }
-
-            return nhaRiengLe;
-        },
-
-        NhaChungCu: function (nhaChungCu) {
-            if (!nhaChungCu) return null;
-
-            if (!nhaChungCu.nhaChungCuId) {
-                nhaChungCu.nhaChungCuId = 0 - new Date().getTime();
-            }
-
-
-            if (nhaChungCu.ListDiaChi) {
-                nhaChungCu.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = nhaChungCu.nhaChungCuId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("NHACHUNGCU");
-                });
-            }
-
-            if (nhaChungCu.ListHangMucSoHuuChung) {
-                nhaChungCu.ListHangMucSoHuuChung.forEach((item, index) => {
-                    if (!item.hangMucSoHuuChungId) {
-                        item.hangMucSoHuuChungId = 0 - (index + 1);
-                    }
-
-                    item.nhaChungCuId = nhaChungCu.nhaChungCuId;
-                });
-            }
-
-            if (nhaChungCu.ListThuaLienKet) {
-                nhaChungCu.ListThuaLienKet.forEach((item, index) => {
-                    if (!item.lienKetTaiSanThuaDatId) {
-                        item.lienKetTaiSanThuaDatId = 0 - (index + 1);
-                    }
-
-                    item.itemId = nhaChungCu.nhaChungCuId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("NHACHUNGCU");
-                });
-            }
-
-            return nhaChungCu;
-        },
-
-        CanHo: function (canHo) {
-            if (!canHo) return null;
-
-            if (!canHo.canHoId) {
-                canHo.canHoId = 0 - new Date().getTime();
-            }
-
-            return canHo;
-        },
-
-        CongTrinhXayDung: function (congTrinhXayDung) {
-            if (!congTrinhXayDung) return null;
-
-            if (!congTrinhXayDung.congTrinhXayDungId) {
-                congTrinhXayDung.congTrinhXayDungId = 0 - new Date().getTime();
-            }
-
-
-            if (congTrinhXayDung.ListDiaChi) {
-                congTrinhXayDung.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = congTrinhXayDung.congTrinhXayDungId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("CONGTRINHXAYDUNG");
-                });
-
-            }
-
-            if (congTrinhXayDung.ListHangMucCongTrinh) {
-                congTrinhXayDung.ListHangMucCongTrinh.forEach((item, index) => {
-                    if (!item.hangMucCongTrinhId) {
-                        item.hangMucCongTrinhId = 0 - (index + 1);
-                    }
-
-                    item.congTrinhXayDungId = congTrinhXayDung.congTrinhXayDungId;
-                });
-            }
-
-            if (congTrinhXayDung.ListThuaLienKet) {
-                congTrinhXayDung.ListThuaLienKet.forEach((item, index) => {
-                    if (!item.lienKetTaiSanThuaDatId) {
-                        item.lienKetTaiSanThuaDatId = 0 - (index + 1);
-                    }
-                    item.itemId = congTrinhXayDung.congTrinhXayDungId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("CONGTRINHXAYDUNG");
-                });
-            }
-
-            return congTrinhXayDung;
-        },
-
-        CongTrinhNgam: function () {
-            if (!congTrinhNgam) return null;
-
-            if (!congTrinhNgam.congTrinhNgamI) {
-                congTrinhNgam.congTrinhNgamId = 0 - new Date().getTime();
-            }
-
-            if (congTrinhNgam.ListDiaChi) {
-                congTrinhNgam.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = congTrinhNgam.congTrinhNgamId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("CONGTRINHNGAM");
-                });
-            }
-
-            if (congTrinhNgam.ListThuaLienKet) {
-                congTrinhNgam.ListThuaLienKet.forEach((item, index) => {
-                    if (!item.lienKetTaiSanThuaDatId) {
-                        item.lienKetTaiSanThuaDatId = 0 - (index + 1);
-                    }
-
-                    item.itemId = congTrinhNgam.congTrinhNgamId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.GetTypeId("CONGTRINHNGAM");
-                });
-            };
-
-            return congTrinhNgam;
-        },
-
-        RungTrong: function (rung) {
-            if (!rung) return null;
-
-            if (!rung.rungTrongId) {
-                rung.rungTrongId = 0 - new Date().getTime();
-            }
-
-            if (rung.ListDiaChi) {
-                rung.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = rung.rungTrongId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.RungTrong;
-                });
-            }
-
-            if (rung.ListThuaLienKet) {
-                rung.ListThuaLienKet.forEach((item, index) => {
-                    if (!item.lienKetTaiSanThuaDatId) {
-                        item.lienKetTaiSanThuaDatId = 0 - (index + 1);
-                    }
-
-                    item.itemId = rung.rungTrongId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.RungTrong;
-                });
-            }
-
-            return rung;
-        },
-
-        CayLauNam: function (cayLauNam) {
-            if (!cayLauNam) return null;
-
-            if (!cayLauNam.cayLauNamId) {
-                cayLauNam.cayLauNamId = 0 - new Date().getTime();
-            }
-
-
-            if (cayLauNam.ListDiaChi) {
-                cayLauNam.ListDiaChi.forEach((item, index) => {
-                    if (!item.diaChiId) {
-                        item.diaChiId = 0 - (index + 1);
-                    }
-
-                    item.itemId = cayLauNam.cayLauNamId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.CayLauNam;
-                });
-            }
-
-            if (cayLauNam.ListThuaLienKet) {
-                cayLauNam.ListThuaLienKet.forEach((item, index) => {
-                    if (!item.lienKetTaiSanThuaDatId) {
-                        item.lienKetTaiSanThuaDatId = 0 - (index + 1);
-                    }
-
-                    item.itemId = cayLauNam.cayLauNamId;
-                    item.typeItem = VBDLIS.Global.ObjectTypes.CayLauNam;
-                });
-            }
-
-            return cayLauNam;
-        }
-    }
-};
-
-VBDLIS.Global.TryParseDateTime = function (value) {
-    var partent = /^\/Date\(-*\d+\)\/$/; //"/Date(716144400000)/"
-    var partentGetText = /-*\d+/;
-    if (value == null) return '';
-    if (typeof (value) == 'object') {
-        value = moment(value);
-        if (value._d.toString() == "Invalid Date") {
-            value = null;
-        }
-    }
-    else if (typeof (value) == 'string') {
-        if (partent.test(value)) {
-            value = partentGetText.exec(value)[0];
-            value = moment(parseInt(value));
-        }
-    }
-    var date = moment(value, "DD/MM/YYYY", true);
-    if (date._d.toString() != "Invalid Date") {
-        return date.format("DD/MM/YYYY");
-    }
-    else {
-        return '-/-';
-    }
-};
-
-VBDLIS.Global.TryParseDateInObject = function (obj) {
-    if (typeof (obj) == "object") {
-        for (var prop in obj) {
-            obj[prop] = VBDLIS.Global.TryParseDateInObject(obj[prop]);
-        }
-        return obj;
-    }
-    else {
-        var pattern = /Date\(([^)]+)\)/;
-        var results = pattern.exec(obj);
-
-        if (results && results.length == 2) {
-            var date = VBDLIS.Global.TryParseDateTime(obj);
-
-            if (date) {
-                return date;
-            }
-        }
-        return obj;
-    }
-};
-
-// #region Hàm tạo ra chuỗi thông tin đại diện cho từng node trên jstree
-VBDLIS.Global.GetLoaiDoiTuongById = function (doiTuongId) {
-    var loaiDoiTuong = {};
-    loaiDoiTuong.doiTuongId = doiTuongId;
-    if (doiTuongId == 0) {
-        loaiDoiTuong.TenMaDoiTuong = "CANHAN";
-        loaiDoiTuong.TenDoiTuong = "Cá nhân";
-    }
-    else if (doiTuongId == 1) {
-        loaiDoiTuong.TenMaDoiTuong = "VOCHONG";
-        loaiDoiTuong.TenDoiTuong = "Vợ chồng";
-    }
-    else if (doiTuongId == 2) {
-        loaiDoiTuong.TenMaDoiTuong = "HOGIADINH";
-        loaiDoiTuong.TenDoiTuong = "Hộ gia đình";
-    }
-    else if (doiTuongId == 3) {
-        loaiDoiTuong.TenMaDoiTuong = "TOCHUC";
-        loaiDoiTuong.TenDoiTuong = "Tổ chức";
-    }
-    else if (doiTuongId == 4) {
-        loaiDoiTuong.TenMaDoiTuong = "CONGDONG";
-        loaiDoiTuong.TenDoiTuong = "Cộng đồng";
-    }
-    else if (doiTuongId == 6) {
-        loaiDoiTuong.TenMaDoiTuong = "THUADAT";
-        loaiDoiTuong.TenDoiTuong = "Thửa đất";
-    }
-    else if (doiTuongId == 7) {
-        loaiDoiTuong.TenMaDoiTuong = "NHARIENGLE";
-        loaiDoiTuong.TenDoiTuong = "Nhà riêng lẻ";
-    }
-    else if (doiTuongId == 8) {
-        loaiDoiTuong.TenMaDoiTuong = "CANHO";
-        loaiDoiTuong.TenDoiTuong = "Căn hộ";
-    }
-    else if (doiTuongId == 9) {
-        loaiDoiTuong.TenMaDoiTuong = "NHACHUNGCU";
-        loaiDoiTuong.TenDoiTuong = "Nhà chung cư";
-    }
-    else if (doiTuongId == 10) {
-        loaiDoiTuong.TenMaDoiTuong = "KHUCHUNGCU";
-        loaiDoiTuong.TenDoiTuong = "Khu chung cư";
-    }
-    else if (doiTuongId == 11) {
-        loaiDoiTuong.TenMaDoiTuong = "CONGTRINHXAYDUNG";
-        loaiDoiTuong.TenDoiTuong = "Công trình xây dựng";
-    }
-    else if (doiTuongId == 12) {
-        loaiDoiTuong.TenMaDoiTuong = "CONGTRINHNGAM";
-        loaiDoiTuong.TenDoiTuong = "Công trình ngầm";
-    }
-    else if (doiTuongId == 13) {
-        loaiDoiTuong.TenMaDoiTuong = "RUNGTRONG";
-        loaiDoiTuong.TenDoiTuong = "Rừng trồng";
-    }
-    else if (doiTuongId == 14) {
-        loaiDoiTuong.TenMaDoiTuong = "CAYLAUNAM";
-        loaiDoiTuong.TenDoiTuong = "Cây lâu năm";
-    }
-    return loaiDoiTuong;
-}
-
-VBDLIS.Global.TextGenertor = function (layer, obj) {
-    var gioiTinh, Formated;
-    switch (layer) {
-        case "CANHAN":
-            Formated = `Cá nhân - ${obj.gioiTinh === 0 || obj.gioiTinh === false ? 'Bà' : 'Ông'}: ${obj.hoTen} - Ngày sinh: ${VBDLIS.Global.TryParseDateTime(obj.ngaySinh)} - Quốc tịch: ${DanhMucAjax.GetQuocTichById(obj.quocTichId1 || obj.quocTichId2)} - Dân tộc: ${DanhMucAjax.GetDanTocById(obj.danTocId)}`;
-            break;
-        case "NGUONGOCSUDUNG":
-            var nguonGocSuDung = DanhMucAjax.GetNguonGocSuDungDatById(obj.loaiNguonGocSuDungDatId);
-            Formated = `Diện tích: ${obj.dienTich}m² - Nguồn gốc chi tiết: ${obj.chiTiet} - Loại nguồn gốc: ${nguonGocSuDung ? nguonGocSuDung.tenLoaiNguonGocInGiay : obj.loaiNguonGocSuDungDatId}`;
-            break;
-        case "DIACHI":
-            Formated = `${obj.diaChiChiTiet}`;
-            break;
-        case "TAILIEUDODAC":
-            Formated = `Loại bản đồ địa chính: ${DanhMucAjax.GetLoaiBanDoDiaChinhById(obj.loaiBanDoDiaChinhId).tenLoaiBanDoDiaChinh} - Phương pháp đo: ${obj.phuongPhapDo} - Đơn vị đo: ${obj.donViDoDac}`;
-            break;
-        case "GIAYTOTUYTHAN":
-            Formated = `Loại giấy tờ:${DanhMucAjax.GetLoaiGiayToTuyThanById(obj.loaiGiayToTuyThanId).tenLoaiGiayTo} - Số giấy tờ:${obj.soGiayTo} - Ngày cấp:${VBDLIS.Global.TryParseDateTime(obj.ngayCap)} - Nơi cấp:${obj.noiCap}`;
-            break;
-        case "GIAYTOTOCHUC":
-            Formated = `Loại tổ chức: ${obj.loaiGiayToToChucId} - Số giấy tờ: ${obj.soGiayTo} - Ngày cấp: ${obj.ngayCap} - Nơi cấp: ${obj.noiCap}`;
-            break;
-        case "MUCDICHSUDUNG":
-            Formated = `${obj.LoaiMucDichSuDung != null ? obj.LoaiMucDichSuDung.loaiMucDichSuDungId : obj.loaiMucDichSuDungId} (${obj.LoaiMucDichSuDung != null ? obj.LoaiMucDichSuDung.tenLoaiMucDichSuDung : obj.loaiMucDichSuDungId}): Diện tích: ${obj.dienTich}m² - Thời hạn sử dụng: ${obj.thoiHanSuDung}`;
-            break;
-        case "TOCHUC":
-            var nguoiDaiDien = obj.NguoiDaiDien;
-            if (nguoiDaiDien instanceof Array && nguoiDaiDien.length > 0) {
-                nguoiDaiDien = nguoiDaiDien[0];
-            }
-            if (nguoiDaiDien) {
-                nguoiDaiDien = `${nguoiDaiDien.gioiTinh === 0 || nguoiDaiDien.gioiTinh === false ? 'Bà' : 'Ông'}: ${nguoiDaiDien.hoTen}`;
-            }
-            Formated = `Tổ chức: ${obj.tenToChuc} - Mã định danh: ${obj.maSoDinhDanh} - Người đại diện: ${nguoiDaiDien}`;
-            break;
-        case "HOGIADINH":
-            var tenChuHo = obj.chuHoId;
-            if (obj.ChuHo != null && obj.ChuHo.hoTen != '') {
-                tenChuHo = obj.ChuHo.hoTen;
-            }
-            Formated = `Hộ gia đình: Chủ hộ: ${tenChuHo} - Số sổ hộ khẩu: ${obj.soSoHoKhau ? obj.soSoHoKhau : '-/-'} - Hồ sơ hộ khẩu số: ${obj.hoSoHoKhauSo ? obj.hoSoHoKhauSo : '-/-'}`;
-            break;
-        case "THANHVIENHOGIADINH":
-            var hoTen = "";
-            gioiTinh = "";
-            if (obj.CaNhan) {
-                hoTen = obj.CaNhan.hoTen;
-                gioiTinh = obj.CaNhan.gioiTinh ? "Ông" : "Bà";
-            }
-            Formated = `${gioiTinh}: ${hoTen} - Quan hệ với chủ hộ: ${obj.quanHeVoiChuHo}`;
-            break;
-        case "VOCHONG":
-            Formated = `Vợ chồng - Ông: ${obj.Chong ? obj.Chong.hoTen : ''} và Bà: ${obj.Vo ? obj.Vo.hoTen : ''} - Số GCN kết hôn: ${obj.soGiayChungNhanKetHon} - Số quyển: ${obj.quyenSoGiayChungNhanKetHon} - Thời kiểm hình thành: ${VBDLIS.Global.TryParseDateTime(obj.thoiDiemHinhThanh)}`;
-            break;
-        case "CONGDONG":
-            Formated = `Cộng đồng: ${obj.tenCongDong} - Loại giấy tờ: ${obj.loaiGiayTo} - Số giấy tờ: ${obj.soGiayTo} - Địa danh cư trú: ${obj.diaDanhCuTru}`;
-            break;
-        case "THUADAT":
-            var diaChi = "-/-";
-            var thuaDat = obj;
-            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
-                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
-            }
-            else if (obj.xaId) {
-                diaChi = DanhMucAjax.GetDiaChiByXaId(obj.xaId);
-            }
-            Formated = `Thửa đất: ${obj.soThuTuThua}(${obj.soHieuToBanDo}) - Diện tích: ${obj.dienTich}m² - Địa chỉ: ${diaChi}`;
-            break;
-        case "NHARIENGLE":
-            var diaChi = "-/-";
-            var thuaDat = obj;
-            if (thuaDat && thuaDat.ListDiaChi && thuaDat.ListDiaChi.length > 0) {
-                diaChi = thuaDat.ListDiaChi[0].diaChiChiTiet;
-            }
-            else if (thuaDat.xaId) {
-                diaChi = DanhMucAjax.GetDiaChiByXaId(thuaDat.xaId);
-            }
-            Formated = `Nhà riêng lẻ số: ${obj.soNha} - Diện tích xây dựng: ${obj.dienTichXayDung}m² - Diện tích sàn: ${obj.dienTichSan}m² - Địa chỉ: ${diaChi}`;
-            break;
-        case "HANGMUCNHARIENGLE":
-            Formated = `Hạng mục: ${obj.tenHangMucNha} - Diện tích sàn: ${obj.dienTichSan}m² - Ghi chú: ${obj.ghiChu}`;
-            break;
-        case "HANGMUCSOHUUCHUNG":
-            Formated = `Hạng mục: ${obj.tenHangMuc} - Diện tích: ${obj.dienTich}m² - Ghi chú: ${obj.ghiChu}`;
-            break;
-        case "CANHO":
-            var chungCu = '';
-            if (obj.nhaChungCu != null) {
-                chungCu = `chung cư: ${obj.nhaChungCu.tenChungCu}`;
-            }
-            Formated = `Căn hộ số: ${obj.soHieuCanHo} ${chungCu}- Tầng số: ${obj.tangSo} - Diện tích sàn: ${obj.dienTichSan}m² - Diện tích sử dụng: ${obj.dienTichSuDung}m²`;
-            break;
-        case "CONGTRINHXAYDUNG":
-            Formated = `Công trình: ${obj.tenCongTrinh} - Số tầng: ${obj.soTang} - Diện tích xây dựng: ${obj.dienTichXayDung}m² - Diện tích sàn: ${obj.dienTichSan}m²`;
-            break;
-        case "HANGMUCCONGTRINH":
-            Formated = `Hạng mục: ${obj.tenHangMuc} - Công năng: ${obj.congNang} - Kết cấu: ${obj.ketCau} - Diện tích xây dựng: ${obj.dienTichXayDung}m² - Diện tích sàn: ${obj.dienTichSan}m²`;
-            break;
-        case "CONGTRINHNGAM":
-            Formated = `Công trình ngầm: ${obj.tenCongTrinh} - Diện tích: ${obj.dienTichCongTrinh}m² - Năm xây dựng: ${obj.namXayDung} - Năm hoàn thành: ${obj.namHoanThanh}`;
-            break;
-        case "CAYLAUNAM":
-            var diaChi = "-/-";
-            var cayLauNam = obj;
-            if (cayLauNam && cayLauNam.ListDiaChi && cayLauNam.ListDiaChi.length > 0) {
-                diaChi = cayLauNam.ListDiaChi[0].diaChiChiTiet;
-            }
-            else if (obj.xaId) {
-                diaChi = DanhMucAjax.GetDiaChiByXaId(obj.xaId);
-            }
-            Formated = `Loại cây: ${obj.tenCayLauNam} - Diện tích: ${obj.dienTich}m² - Địa chỉ: ${diaChi}`;
-            break;
-        case "RUNGTRONG":
-            var diaChi = "-/-";
-            var rungTrong = obj;
-            if (rungTrong && rungTrong.ListDiaChi && rungTrong.ListDiaChi.length > 0) {
-                diaChi = rungTrong.ListDiaChi[0].diaChiChiTiet;
-            }
-            else if (obj.xaId) {
-                diaChi = DanhMucAjax.GetDiaChiByXaId(obj.xaId);
-            }
-            Formated = `Rừng trồng: ${obj.tenRung} - Diện tích: ${obj.dienTich}m² - Địa chỉ: ${diaChi}`;
-            break;
-        case "LIENKETTAISANTHUADAT":
-            var diaChi = "-/-";
-            var lienKetTaiSanThuaDat = obj;
-            if (obj.thuaDat) {
-                lienKetTaiSanThuaDat = obj.thuaDat;
-            }
-            if (lienKetTaiSanThuaDat && lienKetTaiSanThuaDat.ListDiaChi && lienKetTaiSanThuaDat.ListDiaChi.length > 0) {
-                diaChi = lienKetTaiSanThuaDat.ListDiaChi[0].diaChiChiTiet;
-            }
-            Formated = `Thuộc thửa đất: ${lienKetTaiSanThuaDat.soThuTuThua}(${lienKetTaiSanThuaDat.soHieuToBanDo}) - Diện tích: ${lienKetTaiSanThuaDat.dienTich}m² - Địa chỉ: ${diaChi}`;
-            break;
-        case "DANGKYTAISAN":
-            Formated = `Thông tin đăng ký: <b>${obj.duDieuKienCapGiay ? 'Đủ điều kiện' : 'Không đủ điều kiện'}</b> - Diện tích: ${obj.dienTich}m² - Tỷ lệ: ${obj.tyLe}% - Ngày bắt đầu: ${VBDLIS.Global.TryParseDateTime(obj.ngayBatDauSoHuu)} - Ngày kết thúc: ${VBDLIS.Global.TryParseDateTime(obj.thoiHanSoHuu)} - Thời gian sở hữu: ${obj.thoiGianSoHuu}`;
-            break;
-        case "GIAYCHUNGNHAN":
-            Formated = `Số phát hành: ${obj.soPhatHanh} - Số hồ sơ gốc: ${obj.soHoSoGoc} - Ngày vào sổ: ${VBDLIS.Global.TryParseDateTime(obj.ngayVaoSo)} - Mã vạch: ${obj.maVach} - Người ký: ${obj.tenNguoiKy}`;
-            break;
-        case "NHACHUNGCU":
-            var diaChi = "-/-";
-            if (obj && obj.ListDiaChi && obj.ListDiaChi.length > 0) {
-                diaChi = obj.ListDiaChi[0].diaChiChiTiet;
-            }
-            Formated = `Tên chung cư: ${obj.tenChungCu} - Tên khu chung cư: ${(obj.khuChungCu && obj.khuChungCu.tenKhu ? obj.khuChungCu.tenKhu : "-/-")} - Địa chỉ: ${diaChi} - Năm xây dựng: ${obj.namXayDung}`;
-            break;
-        case "TINHHINHDANGKY":
-            Formated = `Mã đơn: ${obj.maDon} - Số thứ tự hồ sơ: ${obj.soThuTu} - Ngày tiếp nhận: ${obj.ngayTiepNhan} - Ngày đăng ký: ${obj.thoiDiemDangKy}`;
-            break;
-        case "QUYETDINH":
-            Formated = `Loại quyết định: ${DanhMucAjax.GetQuyetDinhById(obj.loaiQuyetDinhId)} - Số giấy tờ: ${obj.soGiayTo} - Ngày ký: ${obj.ngayKy} - Người ký: ${obj.nguoiKy} - Cơ quan ban hành: ${obj.coQuanBanHanh} `;
-            break;
-        case "HOPDONG":
-            Formated = `Số hợp đồng: ${obj.soHopDong} -  Ngày hợp đồng: ${obj.ngayHopDong} - Thời hạn:${obj.thoiHan} - Ngày bắt đầu: ${obj.ngayBatDau} - Ngày kết thúc: ${obj.ngayKetThuc} - Nơi công chứng: ${obj.noiCongChung}`;
-            break;
-        case "HANCHETHUALIENKE":
-            Formated = `Số tờ: ${obj.soTo} - Số thửa: ${obj.soThua} - Diện tích: ${obj.dienTich}m² - Ngày đăng ký: ${obj.ngayDangKy} - Thời hạn: ${obj.thoiHan} - Nội dung: ${obj.noiDung}`;
-            break;
-        default:
-            Formated = layer + " Chưa được định nghĩa";
-    }
-    var regexFilter = ["null", "01\/01\/0001", "undefined", "Không có thông tin"];
-    //Filter exception
-    Formated = Formated.replace(new RegExp(regexFilter.join('|'), 'g'), "-/-");
-    return Formated;
-};
-
-VBDLIS.Global.ObjectTypes = {
-    arr: ["CANHAN", "VOCHONG", "HOGIADINH", "TOCHUC", "CONGDONG", "THUADAT", "NHARIENGLE", "CANHO", "NHACHUNGCU", "KHUCHUNGCU", "CONGTRINHXAYDUNG", "CONGTRINHNGAM", "RUNGTRONG", "CAYLAUNAM"],
-    GetTypeId: function (typeName) {
-        var index = this.arr.indexOf(typeName.toUpperCase());
-
-        if (index == -1) return null;
-
-        return index;
-    },
-    GetTypeName: function (typeId) {
-        return this.arr[typeId];
-    }
-};
-
-VBDLIS.Global.ConvertFileUploadToBase64String = function (file, callback) {
-    var reader = new FileReader();
-    reader.onload = function () {
-        var strBase64 = this.result.split("base64,")[1];
-        if (callback) {
-            callback(strBase64);
-        }
-    }
-    if (file) {
-        reader.readAsDataURL(file);
-    }
-    else {
-        callback();
-    }
-};
-// #endregion
-
-// #region hàm lấy script cho các module động
-VBDLIS.Global.BindScriptsDynamic = function (dom, callback) {
-    var scripts = dom.find('script');
-    VBDLIS.Global.waitAll = 0;
-    if (scripts && scripts.length > 0) {
-        scripts.each(function (index, script) {
-            var urlScr = script.getAttribute('src');
-            if (urlScr != null) {
-                var fnLoad = urlScr.split('/');
-                fnLoad = fnLoad[fnLoad.length - 1].replace('.js', '');
-                $.getScript(urlScr).always(function (dataORjqXHR, textStatus, jqXHRORerrorThrown) {
-                    processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback, { scripts: scripts, script: script, fnLoad: fnLoad, requestType: 'script' });
-                });
-            }
-        });
-    }
-};
-
-VBDLIS.Msg = {
-    OK: "OK",
-    YESNO: "YESNO",
-    WARNING: "exclamation-circle",
-    INFO: "info-circle",
-    QUESTION: "question-circle",
-    ERROR: "times-circle",
-    SUCCESS: "check-circle",
-    UNSUCCESS: "meh-o",
-    show: function (opts) {
-        var defaultOpts = {
-            title: "Thông báo",
-            msg: "",
-            errorMsg: "",
-            icon: "info-circle",
-            buttons: "OK",
-            fn: null,
-            ajaxErr: false,
-        };
-        opts = $.extend({}, defaultOpts, opts);
-        var modal = [];
-        var iconColor = "#dddddd"; //default
-        if (opts.icon == VBDLIS.Msg.WARNING) {
-            iconColor = "orange";
-        }
-        else if (opts.icon == VBDLIS.Msg.ERROR || opts.icon == VBDLIS.Msg.UNSUCCESS) {
-            iconColor = "#e26565";
-        }
-        modal.push("<div class='modal message'>");
-        if (opts.ajaxErr) {
-            modal.push("<div class='modal-dialog modal-dialog modal-center modal-95' role='document'>");
-        } else {
-            modal.push("<div class='modal-dialog modal-dialog modal-center modal-30' role='document'>");
-        }
-        modal.push("<div class='modal-content'>");
-        modal.push("<div class='modal-header'>");
-        modal.push("<h4 class='modal-title'>" + opts.title + "</h4>");
-        modal.push("</div>");
-        modal.push("<div class='modal-body'>");
-        if (opts.ajaxErr) {
-            modal.push("<div style='overflow:auto;max-height:65vh'>");
-        } else {
-            modal.push("<div style='width:50px; height:50px; display: table-cell; font-size:50px; color: " + iconColor + "'><i class='fa fa-" + opts.icon + "' style='position: absolute; top:10px; opacity: 0.4'></i></div>");
-            modal.push("<div style='display: table-cell; text-align: center; vertical-align:middle; padding-left:15px'>");
-        }
-        modal.push("<p style='font-size:15px'>" + opts.msg + "</p>");
-        modal.push("<p style='font-size:15px'>" + opts.errorMsg + "</p>");
-        modal.push("</div>");
-        modal.push("<div></div>");
-        modal.push("</div>");
-        modal.push("<div class='modal-footer' style='text-align: center'>");
-        modal.push("</div>");
-        modal.push("</div>");
-        modal.push("</div>");
-        modal.push("</div>");
-        modal = $(modal.join("")).appendTo($("#dvModalContainer"));
-        if (opts.buttons == "OK") {
-            modal.find(".modal-footer").append($("<button type='button' class='btn btn-success' value='OK'><i class='fa fa-check-circle'></i> Đồng ý</button>"));
-        }
-        else if (opts.buttons == "YESNO") {
-            modal.find(".modal-footer").append($("<button type='button' class='btn btn-success' value='YES'><i class='fa fa-check-circle'></i> Đồng ý</button>"));
-            modal.find(".modal-footer").append($("<button type='button' class='btn' value='NO'><i class='fa fa-times-circle'></i> Không</button>"));
-        }
-        modal.find(".modal-footer button").click(function () {
-            modal.modal("hide");
-            modal.remove();
-
-            if (typeof (opts.fn) == "function") {
-                opts.fn(this.value);
-            }
-        });
-    }
-};
-
-VBDLIS.VModule.VModuleJsLoader = {};
-
-VBDLIS.VModule.getVModule = function (jObject) {
-    var vModule = jObject.closest(".VModule");
-    if (vModule[0] != null) {
-        if (vModule[0].hasInit) {
-            return vModule;
-        }
-        vModule.mode = "add";
-        var jsonSettings = vModule.attr('vmodule-settings');
-        if (jsonSettings) {
-            vModule.Settings = JSON.parse(jsonSettings);
-        }
-        vModule.VModuleId = vModule.attr("vmodule-id");
-        vModule.on("initview", function () {
-            if (vModule.onChangeData) {
-                vModule.onChangeData();
-            }
-        });
-
-        vModule.change(function (e) {
-            if (e != null && e.target != null && $(e.target).hasClass("VModule")) {
-                if (this.value != null && this.value != "") {
-                    if (this.value instanceof Array) {
-                        vModule.mode = "add";
-                    }
-                    else {
-                        vModule.mode = "update";
-                    }
-                }
-                else {
-                    vModule.mode = "add";
-                }
-                if (this.value != null && this.value != "" && typeof (this.value) == "object") {
-                    bindFormData(vModule, this.value);
-                }
-                else {
-                    clearFormData(vModule);
-                }
-                if (vModule.onChangeData) {
-                    vModule.onChangeData();
-                }
-            }
-            return false;
-        });
-
-        vModule.saveData = function (fireEvent, mergeMe, usingMeIsValue) {
-            var obj = getFormValue(this);
-            var currentData = this.val();
-            if (vModule.mode == "add") {
-                obj._id = new Date().getTime();
-            }
-            else {
-                if (currentData && currentData._id)
-                    obj._id = currentData._id;
-            }
-            if (mergeMe) {
-                obj = $.extend({}, obj, mergeMe);
-            }
-            else if (usingMeIsValue) {
-                obj = usingMeIsValue;
-            }
-            this[0].value = obj;
-            if (typeof (fireEvent) == "undefined" || fireEvent)
-                $(this).trigger(vModule.mode + "_data", obj);
-        };
-
-        vModule.deleteData = function (fireEvent) {
-            vModule;
-            var obj = null;
-            if (this instanceof jQuery) {
-                obj = this.val();
-                this[0].value = null;
-            }
-            else {
-                obj = this.value;
-                this.value = null;
-            }
-            if (typeof (fireEvent) == "undefined" || fireEvent)
-                $(this).trigger("delete_data", obj);
-        };
-
-        vModule.clear = function () {
-            clearFormData(vModule);
-        };
-        vModule[0].hasInit = true; //Chỉ khởi tạo 1 lần
-    }
-    else {
-        console.log("vModule not exist", jObject);
-    }
-    return vModule;
-};
-// #endregion
-
-// #region Các hàm dùng chung khi xử lý danh mục
-VBDLIS.DanhMuc.OnChangeData = function (vModule, type) {
-    var value = vModule.val();
-    var new_data = [{
-        text: 'Không có dữ liệu'
-    }];
-    if (value && value.length !== 0) {
-        if (!(value instanceof Array)) {
-            value = [value];
-        }
-        var data = value.map(function (item, index) {
-            var text = VBDLIS.Global.TextGenertor(type, item);
-            return {
-                text: text,
-                data: item,
-                type: type
-            };
-        });
-        new_data = data;
-    }
-    vModule.find('#tree' + VBDLIS.DanhMuc.ToTitle(type)).jstree(true).settings.core.data = new_data;
-    vModule.find('#tree' + VBDLIS.DanhMuc.ToTitle(type)).jstree(true).refresh(false, true);
-};
-
-VBDLIS.DanhMuc.OnSelectedItem = function (vModule, data, multiselect, type) {
-    if (data) {
-        ChuSoHuuAjax['Get' + VBDLIS.DanhMuc.ToTitle(type) + 'ById'](data[VBDLIS.DanhMuc.ToCamel(type, { suffixes: 'Id' })], function (data) {
-            if (data && data.Value) {
-                data = data.Value;
-                if (multiselect) {
-                    if (!vModule[0].value) {
-                        vModule[0].value = [];
-                        vModule[0].value.push(data);
-                    }
-                    else {
-                        var isExist = false;
-                        if (vModule[0].value) {
-                            isExist = vModule[0].value.filter(function (x) {
-                                return x.Id === data.Id;
-                            }).length > 0;
-                        }
-                        if (!isExist) {
-                            vModule[0].value.push(data);
-                        }
-                    }
-                }
-                else {
-                    vModule[0].value = [data];
-                }
-                vModule.change();
-            }
-            else {
-                VBDLIS.Msg.show({ icon: VBDLIS.Msg.UNSUCCESS, msg: 'Không tải được dữ liệu. ' + data.Error });
-            }
-        });
-        $('#mdlTraCuu' + VBDLIS.DanhMuc.ToTitle(type) + '-' + vModule.VModuleId).modal('hide');
-    }
-};
-
-VBDLIS.DanhMuc.OnAddData = function (vModule, data, multiselect, type) {
-    var value = vModule.val();
-    if (!value) value = [];
-    if (multiselect) {
-        value.push(data);
-    }
-    else {
-        value[0] = data;
-    }
-    vModule[0].value = value;
-    vModule.change();
-    $('#mdlChiTiet' + VBDLIS.DanhMuc.ToTitle(type) + '-' + vModule.VModuleId).modal('hide');
-};
-
-VBDLIS.DanhMuc.OnUpdateData = function (vModule, data, type) {
-    var value = vModule.val();
-    if (!value) value = [];
-    var searchField = '';
-    if (!data.Id) {
-        searchField = '_id';
-    }
-    else {
-        searchField = 'Id';
-    }
-    for (var i = 0; i < value.length; i++) {
-        if (value[i][searchField] === data[searchField]) {
-            value[i] = data;
-            break;
-        }
-    }
-    vModule[0].value = value;
-    vModule.change();
-    $('#mdlChiTiet' + VBDLIS.DanhMuc.ToTitle(type) + '-' + vModule.VModuleId).modal('hide');
-};
-
-VBDLIS.DanhMuc.Sua = function (vModule, type) {
-    var nodes = vModule.find('#tree' + VBDLIS.DanhMuc.ToTitle(type)).jstree().get_selected(true);
-    if (nodes !== null && nodes.length > 0 && nodes[0].text !== 'Không có dữ liệu') {
-        $('#' + VBDLIS.DanhMuc.ToCamel(type) + 'ChiTietPanel' + '-' + vModule.VModuleId).val(nodes[0].data).change();
-        $('#mdlChiTiet' + VBDLIS.DanhMuc.ToTitle(type) + '-' + vModule.VModuleId).modal('show');
-    }
-    else {
-        alertify.warning('bl', 'Vui lòng chọn ' + VBDLIS.DanhMuc.ToVi(type) + ' cần sửa.');
-    }
-};
-
-VBDLIS.DanhMuc.BoChon = function (vModule, type, options = { mustHaveOne: false }) {
-    var nodes = vModule.find('#tree' + VBDLIS.DanhMuc.ToTitle(type)).jstree().get_selected(true);
-    if (nodes && nodes.length > 0 && nodes[0].data) {
-        if (options.mustHaveOne === true) {
-            if (vModule.find('#tree' + VBDLIS.DanhMuc.ToTitle(type)).jstree(true).get_json("#").length > 1) {
-                var value = vModule.val();
-                if (value instanceof Array) {
-                    var item = value.filter(x => x.Id == nodes[0].data.Id);
-                    if (item.length > 0) {
-                        value.splice(value.indexOf(item[0]), 1);
-                    }
-                }
-                else {
-                    value = null;
-                }
-                vModule[0].value = value;
-                vModule.change();
-            } else {
-                alertify.warning('bl', 'Phải có ít nhất một ' + VBDLIS.DanhMuc.ToVi(type) + '.');
-            }
-        } else {
-            var value = vModule.val();
-            if (value instanceof Array) {
-                var item = value.filter(x => x.Id == nodes[0].data.Id);
-                if (item.length > 0) {
-                    value.splice(value.indexOf(item[0]), 1);
-                }
-            }
-            else {
-                value = null;
-            }
-            vModule[0].value = value;
-            vModule.change();
-        }
-    }
-    else {
-        alertify.warning('bl', 'Vui lòng chọn ' + VBDLIS.DanhMuc.ToVi(type) + ' cần xóa.');
-    }
-};
-
-VBDLIS.DanhMuc.CreateDefaultTreeSettings = function (options = { multiple: true }) {
-    return {
-        core: {
-            check_callback: true,
-            themes: {
-                name: "proton",
-                icons: true,
-                dots: true,
-                responsive: true,
-                stripes: false
-            },
-            dblclick_toggle: false,
-            multiple: options.multiple,
-            data: [
-                { text: "Không có dữ liệu", parent: "root" }
+        toolbarSettings: {
+            toolbarPosition: "bottom",
+            toolbarExtraButtons: [
+                $('<a class="btn btn-primary hover-effect" id="btnHoanTatBienDong" style="display:none"><i class="fa fa-save"></i> Hoàn tất</a>'),
+                $('<a class="btn btn-default hover-effect" data-dismiss="modal" id="btnDongBienDong"><i class="fa fa-remove"></i> Đóng</a>')
             ]
         },
-        plugins: ["types"],
-        types: VBDLIS.Global.treeTypes
-    };
-};
-
-VBDLIS.DanhMuc.ToTitle = function (inputString, options = { prefixes: null, suffixes: null }) {
-    var ouputString = '';
-    if (inputString) {
-        ouputString = ConvertToEn(VBDLIS.DanhMuc.ToVi(inputString)).replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); }).replace(/\s/g, "");
-        if (options.prefixes) {
-            ouputString = options.prefixes + ouputString;
-        }
-        if (options.suffixes) {
-            ouputString = ouputString + options.suffixes;
-        }
-    }
-    return ouputString;
-};
-
-VBDLIS.DanhMuc.ToCamel = function (inputString, options = { prefixes: null, suffixes: null }) {
-    var ouputString = '';
-    if (inputString) {
-        ouputString = VBDLIS.DanhMuc.ToTitle(inputString);
-        ouputString = ouputString[0].toLowerCase() + ouputString.slice(1);
-        if (options.prefixes) {
-            ouputString = options.prefixes + ouputString;
-        }
-        if (options.suffixes) {
-            ouputString = ouputString + options.suffixes;
-        }
-    }
-    return ouputString;
-};
-
-VBDLIS.DanhMuc.ToLower = function (inputString, options = { id: null, s: null }) {
-    var outputString = '';
-    if (options.id && options.id === true) {
-        outputString = inputString.slice(0, -2);
-    }
-    if (options.s && options.s === true) {
-        outputString = inputString.slice(0, -1);
-    }
-    outputString = outputString.toLowerCase();
-    return outputString;
-};
-
-VBDLIS.DanhMuc.ToUpper = function (inputString, options = { id: null, s: null }) {
-    var outputString = '';
-    if (options.id && options.id === true) {
-        outputString = inputString.slice(0, -2);
-    }
-    if (options.s && options.s === true) {
-        outputString = inputString.slice(0, -1);
-    }
-    outputString = outputString.toUpperCase();
-    return outputString;
-};
-
-VBDLIS.DanhMuc.ToVi = function (inputString) {
-    var ouputString = '';
-    if (inputString) {
-        inputString = inputString.toLowerCase();
-        switch (inputString) {
-            case 'canhan':
-                ouputString = 'cá nhân';
-                break;
-            case 'canho':
-                ouputString = 'căn hộ';
-                break;
-            case 'caylaunam':
-                ouputString = 'cây lâu năm';
-                break;
-            case 'chusudung':
-                ouputString = 'chủ sử dụng';
-                break;
-            case 'congdong':
-                ouputString = 'cộng đồng';
-                break;
-            case 'congtrinhngam':
-                ouputString = 'công trình ngầm';
-                break;
-            case 'congtrinhxaydung':
-                ouputString = 'công trình xây dựng';
-                break;
-            case 'hangmuccongtrinh':
-                ouputString = 'hạng mục công trình';
-                break;
-            case 'diachi':
-                ouputString = 'địa chỉ';
-                break;
-            case 'dondangky':
-                ouputString = 'đơn đăng ký';
-                break;
-            case 'hopdong':
-                ouputString = 'hợp đồng';
-                break;
-            case 'quyetdinh':
-                ouputString = 'quyết định';
-                break;
-            case 'giaychungnhan':
-                ouputString = 'giấy chứng nhận';
-                break;
-            case 'giaytotochuc':
-                ouputString = 'giấy tờ tổ chức';
-                break;
-            case 'giaytotuythan':
-                ouputString = 'giấy tờ tùy thân';
-                break;
-            case 'hanchethualienke':
-                ouputString = 'hạn chế thửa liền kề';
-                break;
-            case 'vanbanbanhanh':
-                ouputString = 'văn bản ban hành';
-                break;
-            case 'hogiadinh':
-                ouputString = 'hộ gia đình';
-                break;
-            case 'khuchungcu':
-                ouputString = 'khu chung cư';
-                break;
-            case 'lienkettaisanthuadat':
-                ouputString = 'liên kết tài sản thửa đất';
-                break;
-            case 'logiaychungnhan':
-                ouputString = 'lô giấy chứng nhận';
-                break;
-            case 'mucdichsudung':
-                ouputString = 'mục đích sử dụng';
-                break;
-            case 'nguongocsudungdat':
-                ouputString = 'nguồn gốc sử dụng đất';
-                break;
-            case 'hangmucsohuuchung':
-                ouputString = 'hạng mục sở hữu chung';
-                break;
-            case 'nhachungcu':
-                ouputString = 'nhà chung cư';
-                break;
-            case 'hangmucnhariengle':
-                ouputString = 'hạng mục nhà riêng lẻ';
-                break;
-            case 'nhariengle':
-                ouputString = 'nhà riêng lẻ';
-                break;
-            case 'rung':
-                ouputString = 'rừng';
-                break;
-            case 'rungtrong':
-                ouputString = 'rừng trồng';
-                break;
-            case 'taisan':
-                ouputString = 'tài sản';
-                break;
-            case 'thanhvienhogiadinh':
-                ouputString = 'thành viên hộ gia đình';
-                break;
-            case 'thuadat':
-                ouputString = 'thửa đất';
-                break;
-            case 'tochuc':
-                ouputString = 'tổ chức';
-                break;
-            case 'vochong':
-                ouputString = 'vợ chồng';
-                break;
-        }
-    }
-    return ouputString;
-};
-// #endregion
-
-// #region Các hàm dùng chung khi xử lý biến động
-VBDLIS.BienDong.LuuChonTraCuu = function (vModule, table, textBienDong) {
-    var selectedData = table.rows({ selected: true }).data();
-    if (!selectedData[0]) {
-        alertify.warning('bl', 'Vui lòng chọn ít nhất một' + textBienDong);
-    }
-    else {
-        $.each(selectedData, function (indexInArray, valueOfElement) {
-            vModule.trigger("selectedItem", valueOfElement);
-        });
-    }
-};
-
-VBDLIS.BienDong.XuLyThanhPhanHoSo = function (jsonSettings, vModuleGetGiayChungNhan, vModuleChuSuDungChon, vModuleTaiSanChon, callback) {
-    if (jsonSettings && jsonSettings.HoSoTiepNhanId) {
-        BienDongAjax.GetTraCuuBienDong(jsonSettings.HoSoTiepNhanId, function (data) {
-            if (data) {
-                var traCuuBienDong = data.TraCuuBienDong;
-                var thanhPhanHoSo = data.ThanhPhanHoSo;
-                if (traCuuBienDong && traCuuBienDong.ListThucHienBienDong) {
-                    if (typeof callback === 'function') {
-                        callback(traCuuBienDong.ListThucHienBienDong);
-                    }
-                } else if (thanhPhanHoSo) {
-                    var listGiayChungNhan = [];
-                    var chuSuDung = {};
-                    var taiSan = {};
-                    var listThanhPhan = ["ThanhPhanHoSoTruocBienDong", "ThanhPhanHoSoSauBienDong"];
-                    listThanhPhan.forEach(function (prop) {
-                        if (thanhPhanHoSo[prop]) {
-                            if (thanhPhanHoSo[prop].ListThanhPhanGiayChungNhan && thanhPhanHoSo[prop].ListThanhPhanGiayChungNhan.length > 0) {
-                                listGiayChungNhan = thanhPhanHoSo[prop].ListGiayChungNhan;
-                                listThongTinDangKy = thanhPhanHoSo[prop].ListThongTinDangKy;
-                            }
-                            if (thanhPhanHoSo[prop].ListThanhPhanChuSuDung && thanhPhanHoSo[prop].ListThanhPhanChuSuDung.length > 0) {
-                                chuSuDung = thanhPhanHoSo[prop].ChuSuDung;
-                            }
-                            if (thanhPhanHoSo[prop].ListThanhPhanTaiSan && thanhPhanHoSo[prop].ListThanhPhanTaiSan.length > 0) {
-                                taiSan = thanhPhanHoSo[prop].TaiSan;
-                            }
-                        }
-                    });
-                    if (vModuleGetGiayChungNhan) {
-                        if (!listGiayChungNhan || listGiayChungNhan.length !== 0) {
-                            var thanhPhanGiayChungNhan = {};
-                            thanhPhanGiayChungNhan.ListGiayChungNhan = listGiayChungNhan;
-                            thanhPhanGiayChungNhan.ListThongTinDangKy = listThongTinDangKy;
-                            VBDLIS.Global.listThongTinDangKy = listThongTinDangKy;
-                            vModuleGetGiayChungNhan[0].value = listGiayChungNhan;
-                            vModuleGetGiayChungNhan.change();
-                        }
-                    }
-                    //if (vModuleChuSuDungChon) {
-                    //    if (!chuSuDung || chuSuDung.length !== 0) {
-                    //        vModuleChuSuDungChon[0].value = chuSuDung;
-                    //        vModuleChuSuDungChon.change();
-                    //    }
-                    //}
-                    //if (vModuleTaiSanChon) {
-                    //    if (!taiSan || taiSan.length !== 0) {
-                    //        vModuleTaiSanChon[0].value = taiSan;
-                    //        vModuleTaiSanChon.change();
-                    //    }
-                    //}
-                    if (typeof callback === 'function') {
-                        callback(null);
-                    }
-                } else {
-                    if (typeof callback === 'function') {
-                        callback(null);
-                    }
-                }
+    },
+    showMessage: {
+        OK: "OK",
+        YESNO: "YESNO",
+        WARNING: "exclamation-circle",
+        INFO: "info-circle",
+        QUESTION: "question-circle",
+        ERROR: "times-circle",
+        SUCCESS: "check-circle",
+        UNSUCCESS: "meh-o",
+        show: function (opts) {
+            var defaultOpts = {
+                title: "Thông báo",
+                msg: "",
+                errorMsg: "",
+                icon: "info-circle",
+                buttons: "OK",
+                fn: null,
+                ajaxErr: false,
+            };
+            opts = $.extend({}, defaultOpts, opts);
+            var modal = [];
+            var iconColor = "#dddddd"; //default
+            if (opts.icon == GLOBAL.showMessage.WARNING) {
+                iconColor = "orange";
             }
-            //else {
-            //    VBDLIS.Msg.show({
-            //        msg: 'Lấy thông tin thành phần hồ sơ không thành công',
-            //        icon: VBDLIS.Msg.UNSUCCESS
-            //    })
-            //}
-        });
-    }
-};
-
-VBDLIS.BienDong.TaoChuSoHuuViewModel = function (treeChuBenNhanData) {
-    var lstCSH = {
-        CaNhans: [],
-        VoChongs: [],
-        HoGiaDinhs: [],
-        ToChucs: [],
-        CongDongs: []
-    };
-    $.each(treeChuBenNhanData, function (index, value) {
-        lstCSH[VBDLIS.DanhMuc.ToTitle(value.type, { suffixes: 's' })].push(value.data);
-    });
-    return lstCSH;
-};
-
-VBDLIS.BienDong.TaoTaiSanViewModel = function (treeTaiSanData) {
-    var lstTS = {
-        ThuaDats: [],
-        NhaRiengLes: [],
-        CanHos: [],
-        NhaChungCus: [],
-        KhuChungCus: [],
-        CongTrinhXayDungs: [],
-        CongTrinhNgams: [],
-        RungTrongs: [],
-        CayLauNams: []
-    };
-    $.each(treeTaiSanData, function (index, value) {
-        lstTS[VBDLIS.DanhMuc.ToTitle(value.type, { suffixes: 's' })].push(value.data);
-    });
-    return lstTS;
-};
-
-VBDLIS.BienDong.TaoGiayChungNhanBienDongViewModel = function (treeGiayChungNhanData, options = { ChonChuSoHuu: false, ChonTaiSan: false }) {
-    //ListGiayChungNhan
-    var ketQua = {
-        ListGiayChungNhanTBD: [],
-        CoItNhatMotChuSoHuu: true,
-        CoItNhatMotTaiSan: true
-    };
-    var daChonItNhatMotChuSoHuuTrongDanhSach = true;
-    var daChonItNhatMotTaiSanTrongDanhSach = true;
-    $.each(treeGiayChungNhanData, function (index, valueGCN) {
-        //Chủ sở hữu
-        var lstCSH = {
-            CaNhans: [],
-            VoChongs: [],
-            HoGiaDinhs: [],
-            ToChucs: [],
-            CongDongs: []
-        };
-        var selectedChuSoHuuCounter = 0;
-        $.each(valueGCN.children.filter(chusohuu => chusohuu.type === 'CHUSOHUU')[0].children, function (index, value) {
-            if (options.ChonChuSoHuu === true) {
-                if (value.state.selected) {
-                    selectedChuSoHuuCounter++;
-                    lstCSH[VBDLIS.DanhMuc.ToTitle(value.type, { suffixes: 's' })].push(value.data);
-                }
+            else if (opts.icon == GLOBAL.showMessage.ERROR || opts.icon == GLOBAL.showMessage.UNSUCCESS) {
+                iconColor = "#e26565";
+            }
+            modal.push("<div class='modal message'>");
+            if (opts.ajaxErr) {
+                modal.push("<div class='modal-dialog modal-dialog modal-center modal-95' role='document'>");
             } else {
-                lstCSH[VBDLIS.DanhMuc.ToTitle(value.type, { suffixes: 's' })].push(value.data);
+                modal.push("<div class='modal-dialog modal-dialog modal-center modal-30' role='document'>");
             }
-        });
-        //nếu giấy đang quét không có chủ sở hữu nào được chọn thì set false
-        if (options.ChonChuSoHuu === true && selectedChuSoHuuCounter === 0) {
-            ketQua.CoItNhatMotChuSoHuu = false;
-        }
-        //Tài sản
-        var lstTS = {
-            ThuaDats: [],
-            NhaRiengLes: [],
-            CanHos: [],
-            NhaChungCus: [],
-            KhuChungCus: [],
-            CongTrinhXayDungs: [],
-            CongTrinhNgams: [],
-            RungTrongs: [],
-            CayLauNams: []
-        };
-        var selectedTaiSanCounter = 0;
-        $.each(valueGCN.children.filter(taisan => taisan.type === 'TAISAN')[0].children, function (index, value) {
-            if (options.ChonTaiSan === true) {
-                if (value.state.selected) {
-                    selectedTaiSanCounter++;
-                    lstTS[VBDLIS.DanhMuc.ToTitle(value.type, { suffixes: 's' })].push(value.data);
-                }
+            modal.push("<div class='modal-content'>");
+            modal.push("<div class='modal-header'>");
+            modal.push("<h4 class='modal-title'>" + opts.title + "</h4>");
+            modal.push("</div>");
+            modal.push("<div class='modal-body'>");
+            if (opts.ajaxErr) {
+                modal.push("<div style='overflow:auto;max-height:65vh'>");
             } else {
-                lstTS[VBDLIS.DanhMuc.ToTitle(value.type, { suffixes: 's' })].push(value.data);
+                modal.push("<div style='width:50px; height:50px; display: table-cell; font-size:50px; color: " + iconColor + "'><i class='fa fa-" + opts.icon + "' style='position: absolute; top:10px; opacity: 0.4'></i></div>");
+                modal.push("<div style='display: table-cell; text-align: center; vertical-align:middle; padding-left:15px'>");
             }
-        });
-        //nếu giấy đang quét không có tài sản nào được chọn thì set false
-        if (options.ChonTaiSan === true && selectedTaiSanCounter === 0) {
-            ketQua.CoItNhatMotTaiSan = false;
-        }
-        ketQua.ListGiayChungNhanTBD.push({
-            GiayChungNhan: valueGCN.data,
-            ChuSoHuu: lstCSH,
-            TaiSan: lstTS
-        });
-    });
-    return ketQua;
-};
-
-VBDLIS.BienDong.TaoActionChangingViewModel = function (currentData, thongTinBienDong) {
-    currentData.soThuTuHoSoThuTucDangKy = parseInt(thongTinBienDong.soThuTuHoSoThuTucDangKy) || null;
-    currentData.maHoSoThuTucDangKy = thongTinBienDong.maHoSoThuTucDangKy;
-    currentData.maLoaiBienDong = thongTinBienDong.maLoaiBienDong;
-    currentData.soThuTuBienDong = parseInt(thongTinBienDong.soThuTuBienDong) || null;
-
-    currentData.soHopDong = parseInt(thongTinBienDong.soHopDong) || null;
-    currentData.ngayHopDong = thongTinBienDong.ngayHopDong;
-    currentData.giaTriHopDong = thongTinBienDong.giaTriHopDong;
-    currentData.ngayTruocBa = thongTinBienDong.ngayTruocBa;
-
-    currentData.quyenCongChung = thongTinBienDong.quyenCongChung;
-    currentData.soCongChung = parseInt(thongTinBienDong.soCongChung) || null;
-    currentData.ngayCongChung = thongTinBienDong.ngayCongChung;
-    currentData.noiCongChung = thongTinBienDong.noiCongChung;
-
-    currentData.lyDoBienDong = thongTinBienDong.lyDoBienDong;
-    currentData.thongTinBienDong = thongTinBienDong.thongTinBienDong;
-    currentData.noiDungHopDong = thongTinBienDong.noiDungHopDong;
-    return currentData;
-};
-
-VBDLIS.BienDong.TaoListGiayChungNhanTuThongTinSauBienDong = function (data) {
-    var listGCN = [];
-    if (data && data.Value && data.Value.ThongTinSauBienDong && data.Value.ThongTinSauBienDong.ListThongTinDangKy) {
-        data.Value.ThongTinSauBienDong.ListThongTinDangKy.forEach(function (item) {
-            if (item && item.ListGiayChungNhan) {
-                listGCN = listGCN.concat(item.ListGiayChungNhan);
+            modal.push("<p style='font-size:15px'>" + opts.msg + "</p>");
+            modal.push("<p style='font-size:15px'>" + opts.errorMsg + "</p>");
+            modal.push("</div>");
+            modal.push("<div></div>");
+            modal.push("</div>");
+            modal.push("<div class='modal-footer' style='text-align: center'>");
+            modal.push("</div>");
+            modal.push("</div>");
+            modal.push("</div>");
+            modal.push("</div>");
+            modal = $(modal.join("")).appendTo($("#dvModalContainer"));
+            if (opts.buttons == "OK") {
+                modal.find(".modal-footer").append($("<button type='button' class='btn btn-success' value='OK'><i class='fa fa-check-circle'></i> Đồng ý</button>"));
             }
-        });
-    }
-    return listGCN;
-};
-
-VBDLIS.BienDong.TaoListNoiDungXacNhanTuThongTinSauBienDong = function (listGCN, data) {
-    if (!data.Value.ThongTinSauBienDong.ListNoiDungXacNhan) {
-        data.Value.ThongTinSauBienDong.ListNoiDungXacNhan = [];
-    }
-    data.Value.ThongTinSauBienDong.ListNoiDungXacNhan = data.Value.ThongTinSauBienDong.ListNoiDungXacNhan.map((item) => {
-        var res = {
-            noiDungXacNhan: item.noiDungXacNhan
-        };
-        if (listGCN) {
-            for (var i = 0; i < listGCN.length; i++) {
-                if (listGCN[i].giayChungNhanId === item.giayChungNhanId) {
-                    res.GiayChungNhan = listGCN[i];
-                    break;
-                }
+            else if (opts.buttons == "YESNO") {
+                modal.find(".modal-footer").append($("<button type='button' class='btn btn-success' value='YES'><i class='fa fa-check-circle'></i> Đồng ý</button>"));
+                modal.find(".modal-footer").append($("<button type='button' class='btn' value='NO'><i class='fa fa-times-circle'></i> Không</button>"));
             }
-        }
-        return res;
-    });
-    return {
-        ListNoiDungXacNhan: data.Value.ThongTinSauBienDong.ListNoiDungXacNhan
-    };
-};
+            modal.find(".modal-footer button").click(function () {
+                modal.modal("hide");
+                modal.remove();
 
-VBDLIS.BienDong.TaoListMucDichSuDungTuListThuaDat = function (ListThuaDat, tenLoaiMucDichSuDung) {
-    var listChuyenMucDich = [];
-    $.each(ListThuaDat, function (indexThuaDat, valueThuaDat) {
-        $.each(valueThuaDat.data.ListMucDichSuDung, function (indexMucDichSuDung, valueMucDichSuDung) {
-            listChuyenMucDich.push({
-                thuaDatId: valueThuaDat.data.thuaDatId,
-                mucDichSuDungId: valueMucDichSuDung.mucDichSuDungId,
-                soThuTu: valueMucDichSuDung.soThuTu,
-                loaiMucDichSuDungId: valueMucDichSuDung.loaiMucDichSuDungId,
-                tenLoaiMucDichSuDung: tenLoaiMucDichSuDung,
-                loaiMucDichSuDungQuyHoachId: valueMucDichSuDung.loaiMucDichSuDungQuyHoachId,
-                dienTich: valueMucDichSuDung.dienTich,
-                thoiHanSuDung: valueMucDichSuDung.thoiHanSuDung,
-                ngaySuDung: valueMucDichSuDung.ngaySuDung
-            });
-        });
-    });
-    return listChuyenMucDich;
-};
-
-VBDLIS.BienDong.TaoTree = function (text, data) {
-    return {
-        text: VBDLIS.Global.TextGenertor(text, data),
-        data: data,
-        type: text
-    };
-};
-
-VBDLIS.BienDong.TaoTreeThuaDat = function (listThuaDat, options = { expand: false, coMDSD: true }) {
-    var new_data = [{
-        "text": "Không có dữ liệu"
-    }];
-    if (listThuaDat) {
-        if (!(listThuaDat instanceof Array)) {
-            listThuaDat = [listThuaDat];
-        }
-        var data = listThuaDat.map(function (item, index) {
-            var text = VBDLIS.Global.TextGenertor("THUADAT", item);
-            var listMucDichSuDung = [];
-            if (item.ListMucDichSuDung != null && item.ListMucDichSuDung.length > 0) {
-                listMucDichSuDung = item.ListMucDichSuDung.map(function (mucDich) {
-                    return {
-                        text: VBDLIS.Global.TextGenertor("MUCDICHSUDUNG", mucDich),
-                        data: mucDich,
-                        type: 'MUCDICHSUDUNG'
-                    };
-                }).filter(function (mucDich) {
-                    return mucDich != null && mucDich.data != null;
-                });
-            }
-            var res = {
-                text: text,
-                data: item,
-                type: 'THUADAT'
-            }
-            if (options.expand === true) {
-                res.state = { opened: true };
-                res.children = listMucDichSuDung;
-            }
-            if (listMucDichSuDung != null && listMucDichSuDung.length > 0 && options.coMDSD === true) {
-                res.children = listMucDichSuDung;
-            }
-            return res;
-        });
-        if (data.length > 0) {
-            new_data = data;
-        }
-    }
-    return new_data;
-};
-
-VBDLIS.BienDong.LocTreeThuaDatTuListMucDich = function (ListGiayChungNhanTBD, ListMucDich) {
-    var danhSachThuaDatChuyenMucDich = [];
-    $.each(ListGiayChungNhanTBD, function (indexGCN, valueGCN) {
-        $.each(valueGCN.TaiSan.ThuaDats, function (indexThuaDat, valueThuaDat) {
-            danhSachThuaDatChuyenMucDich.push(valueThuaDat);
-        });
-    });
-    var listThuaDatId = [];
-    $.each(ListMucDich, function (indexChuyenMucDich, valueChuyenMucDich) {
-        listThuaDatId.push(valueChuyenMucDich.thuaDatId);
-    });
-    var treeDataDanhSachChuyenMucDich = [];
-    $.each(danhSachThuaDatChuyenMucDich.filter(thuadat => listThuaDatId.includes(thuadat.thuaDatId)), function (indexTree, valueTree) {
-        treeDataDanhSachChuyenMucDich.push(VBDLIS.BienDong.TaoTreeThuaDat(valueTree, { expand: true })[0]);
-    });
-    return treeDataDanhSachChuyenMucDich;
-};
-
-VBDLIS.BienDong.TaoTreeThuaDatTuMucDichMoi = function (ListGiayChungNhanTBD, ListChuyenMucDich) {
-    var listThuaDatCu = [];
-    $.each(ListGiayChungNhanTBD, function (indexGCN, valueGCN) {
-        $.each(valueGCN.TaiSan.ThuaDats, function (indexThuaDat, valueThuaDat) {
-            listThuaDatCu.push(valueThuaDat);
-        });
-    });
-    var listThuaDatMoi = [];
-    $.each(ListChuyenMucDich, function (indexChuyenMucDich, valueChuyenMucDich) {
-        $.each(listThuaDatCu, function (indexThuaDatCu, valueThuaDatCu) {
-            if (valueChuyenMucDich.thuaDatId === valueThuaDatCu.thuaDatId) {
-                var thuaDatMoiData = valueThuaDatCu;
-                $.each(thuaDatMoiData.ListMucDichSuDung, function (indexMucDich, valueMucDich) {
-                    if (valueMucDich.mucDichSuDungId === valueChuyenMucDich.mucDichSuDungId) {
-                        thuaDatMoiData.ListMucDichSuDung[indexMucDich].ngaySuDung = valueChuyenMucDich.ngaySuDung;
-                        thuaDatMoiData.ListMucDichSuDung[indexMucDich].thoiHanSuDung = valueChuyenMucDich.thoiHanSuDung;
-                    }
-                });
-                listThuaDatMoi.push(thuaDatMoiData);
-            }
-        });
-    });
-    var treeDataThuaDatMoi = [];
-    $.each(listThuaDatMoi, function (indexThuaDatMoi, valueThuaDatMoi) {
-        treeDataThuaDatMoi.push(VBDLIS.BienDong.TaoTreeThuaDat(valueThuaDatMoi, { expand: true, coMDSD: true })[0]);
-    });
-    return treeDataThuaDatMoi;
-};
-
-VBDLIS.BienDong.TaoTreeGiayChungNhan = function (dataGCN, bdType, options = { CSHDaChon: null, TSDaChon: null }) {
-    var gcnObj = null;
-    switch (bdType) {
-        case "capnhatthanhphanhoso":
-        case "chuyenquyentrongiay":
-        case "bosungtaisan":
-        case "capdoi":
-        case "giaothuenhanuoc":
-        case "chuyenmucdichsudung":
-        case "dinhchinhgiaychungnhan":
-        case "ketthucchothue":
-        case "chuyenhinhthucgiaothue":
-        case "giahansudungdat":
-        case "thuhoigiaychungnhan":
-        case "chothuelai":
-        case "hanchequyen":
-        case "hanchethualienke":
-        case "tachthuachuyenquyen":
-            gcnObj = {
-                text: "Giấy chứng nhận || " + VBDLIS.Global.TextGenertor("GIAYCHUNGNHAN", dataGCN["GiayChungNhan"]),
-                data: dataGCN["GiayChungNhan"],
-                children: [{
-                    text: "Chủ sở hữu",
-                    data: dataGCN["ChuSoHuu"],
-                    children: VBDLIS.BienDong.TaoListNodeConTreeData(dataGCN["ChuSoHuu"], true),
-                    type: 'CHUSOHUU',
-                    state: { opened: true }
-                }, {
-                    text: "Tài sản",
-                    data: dataGCN["TaiSan"],
-                    children: VBDLIS.BienDong.TaoListNodeConTreeData(dataGCN["TaiSan"], true),
-                    type: 'TAISAN',
-                    state: { opened: true }
-                }],
-                type: 'GIAYCHUNGNHAN',
-                state: { opened: true }
-            };
-            break;
-        case "thechap":
-        case "xoathechap":
-        case "giaothuecanhan":
-            gcnObj = {
-                text: "Giấy chứng nhận || " + VBDLIS.Global.TextGenertor("GIAYCHUNGNHAN", dataGCN["GiayChungNhan"]),
-                data: dataGCN["GiayChungNhan"],
-                children: [{
-                    text: "Chủ sở hữu",
-                    data: dataGCN["ChuSoHuu"],
-                    children: VBDLIS.BienDong.TaoListNodeConTreeData(dataGCN["ChuSoHuu"], false, { CSHDaChon: options.CSHDaChon, TSDaChon: options.TSDaChon }),
-                    type: 'CHUSOHUU',
-                    state: { opened: true, disabled: true }
-                }, {
-                    text: "Tài sản",
-                    data: dataGCN["TaiSan"],
-                    children: VBDLIS.BienDong.TaoListNodeConTreeData(dataGCN["TaiSan"], true, { CSHDaChon: options.CSHDaChon, TSDaChon: options.TSDaChon }),
-                    type: 'TAISAN',
-                    state: { opened: true }
-                }],
-                type: 'GIAYCHUNGNHAN',
-                state: { opened: true }
-            };
-            break;
-        case "tachthua":
-        case "gopthua":
-            gcnObj = {
-                text: "Giấy chứng nhận || " + VBDLIS.Global.TextGenertor("GIAYCHUNGNHAN", dataGCN["GiayChungNhan"]),
-                data: dataGCN["GiayChungNhan"],
-                children: [{
-                    text: "Chủ sở hữu",
-                    data: dataGCN["ChuSoHuu"],
-                    children: VBDLIS.BienDong.TaoListNodeConTreeData(dataGCN["ChuSoHuu"]),
-                    type: 'CHUSOHUU'
-                }, {
-                    text: "Tài sản",
-                    data: dataGCN["TaiSan"],
-                    children: VBDLIS.BienDong.TaoListNodeConTreeData(dataGCN["TaiSan"], true),
-                    type: 'TAISAN',
-                    state: { opened: true }
-                }],
-                type: 'GIAYCHUNGNHAN',
-                state: { opened: true }
-            };
-            break;
-        default:
-            var data = vModule.val();
-            if (data && data.length > 0) {
-                gcnObj = data.map(function (item) {
-                    return {
-                        text: "Giấy chứng nhận || " + VBDLIS.Global.TextGenertor("GIAYCHUNGNHAN", item["GiayChungNhan"]),
-                        data: item["GiayChungNhan"],
-                        children: [{
-                            text: "Chủ sở hữu",
-                            data: item["ChuSoHuu"],
-                            children: VBDLIS.BienDong.TaoListNodeConTreeData(item["ChuSoHuu"]),
-                            type: 'CHUSOHUU',
-                            state: { opened: true }
-                        }, {
-                            text: "Tài sản",
-                            data: item["TaiSan"],
-                            children: VBDLIS.BienDong.TaoListNodeConTreeData(item["TaiSan"]),
-                            type: 'TAISAN',
-                            state: { opened: true }
-                        }],
-                        type: 'GIAYCHUNGNHAN',
-                        state: { opened: true }
-                    };
-                });
-            }
-    }
-    return gcnObj;
-};
-
-VBDLIS.BienDong.TaoListNodeConTreeData = function (data, enableCheckbox = false, options = { CSHDaChon: null, TSDaChon: null }) {
-    var result = [];
-    if (data !== null) {
-        $.each(data, function (key, value) {
-            $.each(value, function (indexInArray, valueOfElement) {
-                var childrenList = {};
-                $.each(valueOfElement, function (k, v) {
-                    if (typeof v === 'object' && k.includes('List')) {
-                        if (v && v.length > 0) {
-                            childrenList[k.toUpperCase().slice(4, k.length)] = v;
-                        }
-                    }
-                });
-                if (Object.keys(childrenList).length > 0) {
-                    result.push(VBDLIS.BienDong.TaoNodeConTreeData(key.toUpperCase().slice(0, -1), enableCheckbox, valueOfElement, childrenList, { CSHDaChon: options.CSHDaChon, TSDaChon: options.TSDaChon }));
-                } else {
-                    result.push(VBDLIS.BienDong.TaoNodeConTreeData(key.toUpperCase().slice(0, -1), enableCheckbox, valueOfElement, null, { CSHDaChon: options.CSHDaChon, TSDaChon: options.TSDaChon }));
+                if (typeof (opts.fn) == "function") {
+                    opts.fn(this.value);
                 }
             });
-        });
-        return result;
+        }
     }
 };
-
-VBDLIS.BienDong.TaoNodeConTreeData = function (text, enableCheckbox, nodeData, children, options = { CSHDaChon: null, TSDaChon: null }) {
-    var res = {
-        text: VBDLIS.Global.TextGenertor(text, nodeData),
-        data: nodeData,
-        icon: true,
-        type: text
-    };
-    if (options.CSHDaChon) {
-        for (key in options.CSHDaChon) {
-            if (key === text) {
-                $.each(options.CSHDaChon[key], function (indexCSH, valueCSH) {
-                    if (valueCSH === nodeData[VBDLIS.DanhMuc.ToCamel(key, { suffixes: 'Id' })]) {
-                        res.state = { selected: true };
-                    }
-                });
-            }
-        }
-    }
-    if (options.TSDaChon) {
-        for (key in options.TSDaChon) {
-            if (key === text) {
-                $.each(options.TSDaChon[key], function (indexTS, valueTS) {
-                    if (valueTS === nodeData[VBDLIS.DanhMuc.ToCamel(key, { suffixes: 'Id' })]) {
-                        res.state = { selected: true };
-                    }
-                });
-            }
-        }
-    }
-    if (!enableCheckbox) {
-        res.state = { disabled: true };
-    }
-    if (children) {
-        var lstChildren = [];
-        for (var key in children) {
-            var dataChildren = [];
-            $.each(children[key], function (indexInArray, valueOfElement) {
-                dataChildren.push(VBDLIS.BienDong.TaoNodeConTreeData(key, false, valueOfElement));
-            });
-            var childrenConfig = {
-                data: children[key],
-                children: dataChildren,
-                type: key,
-                state: { disabled: true }
-            };
-            switch (key) {
-                case "DIACHI":
-                    childrenConfig.text = "Địa chỉ";
-                    break;
-                case "GIAYTOTUYTHAN":
-                    childrenConfig.text = "Giấy tờ tùy thân";
-                    break;
-                case "MUCDICHSUDUNG":
-                    childrenConfig.text = "Mục đích sử dụng";
-                    break;
-            }
-            $.merge(lstChildren, [childrenConfig]);
-        }
-        res.children = lstChildren;
-    }
-    return res;
-};
-
-VBDLIS.BienDong.PhucHoiTreeGiayChungNhanTheChap = function (ListGiayChungNhan, ListGiayChungNhanTBD) {
-    var danhSachDaChon = {
-        CANHO: [],
-        CAYLAUNAM: [],
-        CONGTRINHNGAM: [],
-        CONGTRINHXAYDUNG: [],
-        KHUCHUNGCU: [],
-        NHACHUNGCU: [],
-        NHARIENGLE: [],
-        RUNGTRONG: [],
-        THUADAT: []
-    };
-    $.each(ListGiayChungNhan, function (index, value) {
-        for (key in value.TaiSan) {
-            if (value.TaiSan[key].length > 0) {
-                $.each(value.TaiSan[key], function (indexInArray, valueOfElement) {
-                    danhSachDaChon[VBDLIS.DanhMuc.ToUpper(key, { s: true })].push(valueOfElement[VBDLIS.DanhMuc.ToCamel(VBDLIS.DanhMuc.ToLower(key, { s: true }), { suffixes: 'Id' })]);
-                });
-            }
-        }
-    });
-    var lstGCN = [];
-    $.each(ListGiayChungNhanTBD, function (index, value) {
-        lstGCN.push(VBDLIS.BienDong.TaoTreeGiayChungNhan(value, 'thechap', { TSDaChon: danhSachDaChon }));
-    });
-    return lstGCN;
-};
-// #endregion
-
 // #endregion
 
 // #region document ready
@@ -2160,7 +220,7 @@ $(function () {
                             parentFormGroup.addClass('focused');
                         }
                         //nếu là datepicker hoặc datetimepicker thì show lên
-                        if (($(this).hasClass('datepicker') || $(this).hasClass('datetimepicker'))) {
+                        if ($(this).hasClass('datepicker') || $(this).hasClass('datepicker-from') || $(this).hasClass('datepicker-to') || $(this).hasClass('datetimepicker') || $(this).hasClass('datetimepicker-from') || $(this).hasClass('datetimepicker-to')) {
                             $(this).datepicker('show');
                         }
                         break;
@@ -2220,7 +280,7 @@ $(function () {
         $(this).on("show.bs.modal", function (e) {
             var zIndex = 1050 + (10 * $(".modal.in").length);
             $(this).css("z-index", zIndex);
-            DynamicSelect2 = zIndex + 10;
+            GLOBAL.dynamicSelect2zIndex = zIndex + 10;
             $(".modal.in").each(function () {
                 if ($(this).css("z-index") < zIndex) {
                     $(this).hide();
@@ -2235,12 +295,12 @@ $(function () {
 
         $(this).on("hide.bs.modal", function () {
             var index_highest = 0;
-            var index_current = parseInt($(this).css("z-index"), 10);
+            var index_current = parseFloat($(this).css("z-index"), 10);
             if (index_current > index_highest) {
                 index_highest = index_current;
             }
             $(".modal.in").each(function () {
-                if (parseInt($(this).css("z-index")) === index_highest - 10) {
+                if (parseFloat($(this).css("z-index")) === index_highest - 10) {
                     $(this).show();
                 } else {
                     $(this).hide();
@@ -2261,10 +321,21 @@ $(function () {
         }
     });
 
+    //cấu hình collapse
+    $.initialize(".collapse", function () {
+        $(this).on('shown.bs.collapse', function () {
+            switchBindButton($(this), 'show');
+        });
+
+        $(this).on('hidden.bs.collapse', function () {
+            switchBindButton($(this), 'hide');
+        });
+    });
+
     //cấu hình mặc định cho datepicker
     if ($.datepicker) {
         $.datepicker.setDefaults({
-            currentText: "Hiện tại",
+            currentText: "Hiện tại (enter)",
             closeText: "Đóng",
             autoSize: false,
             showButtonPanel: true,
@@ -2306,7 +377,8 @@ $(function () {
                 }
             }).inputmask("date", {
                 placeholder: "__/__/____",
-                showMaskOnHover: false
+                showMaskOnHover: false,
+                clearIncomplete: true
             });
         });
 
@@ -2322,7 +394,8 @@ $(function () {
                 }
             }).inputmask("date", {
                 placeholder: "__/__/____",
-                showMaskOnHover: false
+                showMaskOnHover: false,
+                clearIncomplete: true
             });
         });
 
@@ -2338,7 +411,8 @@ $(function () {
                 }
             }).inputmask("date", {
                 placeholder: "__/__/____",
-                showMaskOnHover: false
+                showMaskOnHover: false,
+                clearIncomplete: true
             });
         });
     }
@@ -2346,7 +420,7 @@ $(function () {
     //cấu hình mặc định cho datetimepicker
     if ($.timepicker) {
         $.timepicker.setDefaults({
-            currentText: "Hiện tại",
+            currentText: "Hiện tại (enter)",
             closeText: "Đóng",
             timeOnlyTitle: "Chọn giờ",
             timeText: "Thời gian",
@@ -2369,7 +443,8 @@ $(function () {
         $.initialize(".datetimepicker", function () {
             $(this).datetimepicker().inputmask("datetime", {
                 placeholder: "__/__/____ __:__",
-                showMaskOnHover: false
+                showMaskOnHover: false,
+                clearIncomplete: true
             });
         });
 
@@ -2380,7 +455,8 @@ $(function () {
                 }
             }).inputmask("datetime", {
                 placeholder: "__/__/____ __:__",
-                showMaskOnHover: false
+                showMaskOnHover: false,
+                clearIncomplete: true
             });
         });
 
@@ -2391,53 +467,70 @@ $(function () {
                 }
             }).inputmask("datetime", {
                 placeholder: "__/__/____ __:__",
-                showMaskOnHover: false
+                showMaskOnHover: false,
+                clearIncomplete: true
             });
         });
     }
 
     //cấu hình mask
     if ($().inputmask) {
+        $.initialize(".percent", function () {
+            $(this).inputmask('integer', { min: 0, max: 100, suffix: " %", removeMaskOnSubmit: true, autoUnmask: true, showMaskOnHover: false, rightAlign: false });
+        });
         $.initialize(".money", function () {
-            $(this).inputmask("integer", { groupSeparator: ",", autoGroup: true, suffix: " đ", removeMaskOnSubmit: true, autoUnmask: true, showMaskOnHover: false });
+            $(this).inputmask("integer", { groupSeparator: ",", autoGroup: true, rightAlign: false, suffix: " đ", removeMaskOnSubmit: true, autoUnmask: true, showMaskOnHover: false });
         });
         $.initialize(".number", function () {
             $(this).inputmask("decimal", { rightAlign: false });
         });
+        $.initialize(".phone", function () {
+            $(this).inputmask({ regex: '[0-9]*', rightAlign: false });
+        });
         $.initialize(".area", function () {
             $(this).inputmask("decimal", { groupSeparator: ",", autoGroup: true, rightAlign: false, digits: 1, suffix: " m\u00B2", removeMaskOnSubmit: true, autoUnmask: true, showMaskOnHover: false });
         });
+        //$.initialize(".year", function () {
+        //    $(this).inputmask("decimal", { groupSeparator: ",", autoGroup: true, rightAlign: false, digits: 1, suffix: " năm", removeMaskOnSubmit: true, autoUnmask: true, showMaskOnHover: false });
+        //});
+        $.initialize(".email", function () {
+            $(this).inputmask("email", { rightAlign: false, removeMaskOnSubmit: true, showMaskOnHover: false, clearIncomplete: true });
+        });
     }
 
-    //cấu hình select2
-    if ($().select2) {
-        $.initialize("select.select2.select2-autobind:not(.select2-hidden-accessible)", function () {
-            InitDataSelect2(this);
-            var parentFormGroup = $(this).closest('.form-group');
-            var hasClassFocused = parentFormGroup.hasClass('focused');
-            //nếu chưa có class focused thì thêm vào
-            if (!hasClassFocused) {
-                parentFormGroup.addClass('focused');
-            }
-            $(this).on("select2:open", function (evt) {
-                $("body > span > span.dynamic-select2").css("z-index", DynamicSelect2);
-            });
-        });
-        $.initialize("select.select2:not(.select2-autobind):not(.select2-hidden-accessible)", function () {
-            $(this).select2({
-                dropdownCssClass: "dynamic-select2", allowClear: false, width: "100%"
-            });
-            var parentFormGroup = $(this).closest('.form-group');
-            var hasClassFocused = parentFormGroup.hasClass('focused');
-            //nếu chưa có class focused thì thêm vào
-            if (!hasClassFocused) {
-                parentFormGroup.addClass('focused');
-            }
-            $(this).on("select2:open", function (evt) {
-                $("body > span > span.dynamic-select2").css("z-index", DynamicSelect2);
-            });
-        });
-    }
+    ////cấu hình select2
+    //if ($().select2) {
+    //    $.initialize("select.select2.select2-autobind:not(.select2-hidden-accessible)", function () {
+    //        InitDataSelect2(this);
+    //        var parentFormGroup = $(this).closest('.form-group');
+    //        var hasClassFocused = parentFormGroup.hasClass('focused');
+    //        //nếu chưa có class focused thì thêm vào
+    //        if (!hasClassFocused) {
+    //            parentFormGroup.addClass('focused');
+    //        }
+    //        $(this).on("select2:open", function (evt) {
+    //            if ($(this).closest('.modal').length > 0) {
+    //                $("body > span > span.dynamic-select2").css("z-index", GLOBAL.dynamicSelect2zIndex);
+    //            }
+    //        });
+    //    });
+    //    $.initialize("select.select2:not(.select2-autobind,.select2-hidden-accessible,.select2-ajax)", function () {
+    //        $(this).select2({
+    //            dropdownCssClass: "dynamic-select2", allowClear: false, width: "100%"
+    //        });
+    //        var parentFormGroup = $(this).closest('.form-group');
+    //        var hasClassFocused = parentFormGroup.hasClass('focused');
+    //        //nếu chưa có class focused thì thêm vào
+    //        if (!hasClassFocused) {
+    //            parentFormGroup.addClass('focused');
+    //        }
+    //        $(this).on("select2:open", function (evt) {
+    //            if ($(this).closest('.modal').length > 0) {
+    //                $("body > span > span.dynamic-select2").css("z-index", GLOBAL.dynamicSelect2zIndex);
+    //            }
+    //        });
+    //    });
+    //}
 
     //cấu hình tooltipster
     if ($().tooltipster) {
@@ -2537,33 +630,28 @@ $(function () {
     }
 
     $('#btnLoginAgain').on('click', function () {
-        $.ajax({
-            url: _WEB_URL + "Account/AjaxLogin",
-            type: "POST",
-            contentType: "application/json",
-            data: JSON.stringify({
-                username: $('#loginAgainModal input[name="username"]').val(),
-                password: $('#loginAgainModal input[name="password"]').val(),
-            }),
-            success: function (data) {
-                if (data && data.Value) {
-                    $('#loginAgainModal').modal('hide');
-                    $('.modal-backdrop.in').css({ 'background-image': 'none', 'opacity': '.5' });
-                }
-                else {
-                    $('#loginAgainModal .login-form .erormess').html("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin đăng nhập");
-                }
-            }
-        })
+        GLOBAL.callAjax('Account/AjaxLogin', {
+            username: $('#loginAgainModal input[name="username"]').val(),
+            password: $('#loginAgainModal input[name="password"]').val(),
+        }, function (result) {
+            $('#loginAgainModal').modal('hide');
+            $('.modal-backdrop.in').css({ 'background-image': 'none', 'opacity': '.5' });
+            GLOBAL.CurrentUser = result.CurrentUser;
+            alertify.success('tl', 'Đăng nhập thành công');
+        });
     });
 
     $.ajaxSetup({
+        crossDomain: true,
+        xhrFields: {
+            withCredentials: true
+        },
         statusCode: {
             401: function (err) {
                 $('#loginAgainModal .login-form .erormess').html("");
                 $('#loginAgainModal input').val("");
                 $('#loginAgainModal').modal('show');
-                $('.modal-backdrop.in').css({ 'background-image': 'url("' + _WEB_URL + "/Assets/css/images/bg-login.png" + '")', 'opacity': 'inherit' });
+                $('.modal-backdrop.in').css({ 'background-image': 'url("' + GLOBAL.linkRoot + "/Assets/css/images/bg-login.png" + '")', 'opacity': 'inherit' });
             }
         }
     });
@@ -2572,6 +660,362 @@ $(function () {
 // #endregion
 
 // #region anonymous functions
+// lấy data của form
+function getFormValue(form) {
+    if (typeof (form) != 'object') {
+        if (form[0] != "#") {
+            form = "#" + form;
+        }
+        form = $(form);
+    }
+    else if (typeof (form) == 'object' && !(form instanceof jQuery)) {
+        form = $(form);
+    }
+    if (!form) return null;
+    var frm = {};
+    var listModuleNames = [];
+
+    form.find('[name]').each(function (index, item) {
+        var closestVModule = $(item).closest('.VModule');
+
+        if (closestVModule.length == 0 || listModuleNames.indexOf(closestVModule.attr('vmodule-id')) == -1) {
+            var name = item.getAttribute('name');
+
+            if (name != "") {
+                if (item.type === 'checkbox' && (item.value == "on" || item.value == "off")) {
+                    frm[name] = item.checked
+                }
+                else if (item.type === 'checkbox') {
+                    frm[name] = item.checked
+                }
+                else if (item.type == 'radio' && item.checked == true) {
+                    frm[name] = item.value;
+                }
+                else if (item.type != 'radio' || (item.type != 'radio' && !item.checked)) {
+                    if (item.value != null) {
+                        frm[name] = item.value
+
+                        if ($(item).hasClass('VModule')) {
+                            listModuleNames.push(item.getAttribute('vmodule-id'));
+                        }
+                    }
+                }
+
+            }
+        }
+
+    });
+    return frm;
+}
+
+//clear form
+function clearFormData(form) {
+
+    if (typeof (form) != 'object') {
+        if (form[0] != "#") {
+            form = "#" + form;
+        }
+
+        form = $(form);
+    }
+    else if (typeof (form) == 'object' && !(form instanceof jQuery)) {
+        form = $(form);
+    }
+
+    if (!form) return null;
+
+    var frm = {};
+
+    form.find('[name]').each(function (index, item) {
+
+        var type = item.getAttribute("type");
+        if (type == "text" || type == "email" || type == "password" || type == "hidden") {
+            item.value = '';
+        }
+        else if (type == "checkbox") {
+            item.checked = false;
+        }
+        else if (type == "file") {
+            $(item).wrap('<form>').closest('form').get(0).reset();
+            $(item).unwrap();
+        }
+        else if (item.className.indexOf('VModule') != -1) {
+            item.value = null;
+            $(item).trigger('initview');
+        }
+        else if (item.tagName == "SELECT") {
+            //$(item).val($(item).find('option:first').val()).change();
+            //if (item.selectedIndex == -1)
+            {
+                var selectItem = $(item).find('option:first').val();
+                $(item).val(selectItem).trigger('change');
+            }
+        }
+        else if (item.tagName == "TEXTAREA") {
+            item.value = '';
+        }
+    });
+}
+
+//gán data lên form
+function bindFormData(form, data) {
+    if (typeof (form) != 'object') {
+        if (form[0] != "#") {
+            form = "#" + form;
+        }
+
+        form = $(form);
+    }
+    else if (typeof (form) == 'object' && !(form instanceof jQuery)) {
+        form = $(form);
+    }
+
+    if (form) {
+        clearFormData(form);
+
+        if (data != null && data != '') {
+            for (var prop in data) {
+                var input = form.find('[name="' + prop + '"]');
+                var type = input.attr('type');
+
+                if (input && input[0]) {
+                    if (input.hasClass('datepicker') || input.hasClass('datepicker-from') || input.hasClass('datepicker-to') || input.hasClass('datetimepicker') || input.hasClass('datetimepicker-from') || input.hasClass('datetimepicker-from')) {
+                        if (data[prop] != null && data[prop] != "") {
+                            var date = dateTimeReviver(null, data[prop]);
+                            input.val(date).trigger('change');
+                        }
+                    }
+                    else if (type == 'radio') {
+                        if (input.length > 1) {
+                            for (var i = 0; i < input.length; i++) {
+                                input[i].checked = input[i].value == data[prop] + "";
+                            }
+                        }
+
+                    }
+                    else if (type == 'checkbox') {
+                        if (data[prop] == 1 || input.val() == true) {
+                            input.attr('checked', 'checked');
+                            input[0].checked = true;
+                        }
+                        else {
+                            input.attr('checked', null);
+                            input[0].checked = false;
+                        }
+                    }
+                    else if (type == "text" || type == "email" || type == "pasword" || type == "hidden" || input[0].tagName == "TEXTAREA") {
+                        input.val(data[prop]).trigger('change');
+                    }
+                    else if (input[0].tagName == "SELECT") {
+                        input.val(data[prop]).trigger('change');
+                        input.attr('data-default-select', data[prop]);
+                    }
+                    else if (type === 'file') {
+                        //do nothing
+                    }
+                    else { //VModule
+                        input[0].value = data[prop];
+                        input.trigger('initview');
+                    }
+                }
+                else {
+                    var exceptProps = ["InId", "OutId"];
+                    if (typeof (data[prop]) != 'object' && data[prop] != null && data[prop] != "" && exceptProps.indexOf(prop) == -1) {
+                        form.append('<input type="hidden" name=' + prop + ' value=' + data[prop] + '></input>');
+                    }
+                    var input = form.find('[value="' + prop + '"]');
+                    var type = input.attr('type');
+                    if (type === 'radio') {
+                        if (input.length > 0) {
+                            input[0].checked = data[prop];
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+//load script động
+function bindScriptsDynamic(dom, callback) {
+    var scripts = dom.find('script');
+    GLOBAL.waitAll = 0;
+    if (scripts && scripts.length > 0) {
+        scripts.each(function (index, script) {
+            var urlScr = script.getAttribute('src');
+            if (urlScr != null) {
+                var fnLoad = urlScr.split('/');
+                fnLoad = fnLoad[fnLoad.length - 1].replace('.js', '');
+                $.getScript(urlScr).always(function (dataORjqXHR, textStatus, jqXHRORerrorThrown) {
+                    processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback, { scripts: scripts, script: script, fnLoad: fnLoad, requestType: 'script' });
+                });
+            }
+        });
+    }
+}
+
+function dateTimeReviver(key, value) {
+    var date;
+    if (typeof value === 'string') {
+        var jsonDate = /\/Date\((-*\d*)\)\//.exec(value);
+        var isoDate = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)Z$/.exec(value);
+        if (jsonDate) {
+            date = new Date(+jsonDate[1]);
+            return `${(date.getDate() < 10 ? '0' : '') + (date.getDate() === 0 ? '1' : date.getDate())
+                }/${(date.getMonth() < 10 ? '0' : '') + (date.getMonth() === 0 ? '1' : date.getMonth() + 1)}/${(date.getFullYear() === 0 ? '0001' : date.getFullYear())}`;
+        } else if (isoDate) {
+            date = new Date(value);
+            return `${(date.getDate() < 10 ? '0' : '') + (date.getDate() === 0 ? '1' : date.getDate())}/${(date.getMonth() < 10 ? '0' : '') + (date.getMonth() === 0 ? '1' : date.getMonth() + 1)}/${(date.getFullYear() === 0 ? '0001' : date.getFullYear())}`;
+        }
+    }
+    return value;
+}
+
+function tryParseDateInObject(obj) {
+    if (typeof obj === "object") {
+        for (var prop in obj) {
+            obj[prop] = tryParseDateInObject(obj[prop]);
+        }
+        return obj;
+    } else {
+        var pattern = /Date\(([^)]+)\)/;
+        var results = pattern.exec(obj);
+        if (results && results.length === 2) {
+            var date;
+            if (isJson(obj)) {
+                date = JSON.stringify(JSON.parse(obj, dateTimeReviver));
+            } else {
+                date = dateTimeReviver(null, obj);
+            }
+            if (date) {
+                return date;
+            }
+        }
+        return obj;
+    }
+}
+
+//khởi tạo data select2
+function InitDataSelect2(dom) {
+    //select2 select2-autobind Config:
+    //data-auto-bind: Name of property in collection DanhMuc
+    //data-value-field: Value field
+    //data-display-field: Display field
+    //data-display-default: --Chọn abc---
+    //data-default-select: default select
+    //data-current-user: current user
+    var me = this;
+    var maxInterval = 200; //20s
+    var countInterval = 0;
+    if (dom && dom.getAttribute('data-auto-bind')) {
+        var interval = setInterval(function () { //<= set tạm vì không biết khi nào load xong DanhMuc
+            var danhMucs = localDB.getCollection("DanhMuc");
+            var domAttribute = dom.getAttribute('data-auto-bind');
+            var options;
+            if (danhMucs != null) {
+                if (danhMucs.data && danhMucs.data.length > 0 && danhMucs.data[0] && danhMucs.data[0].value) {
+                    options = danhMucs.data[0].value[domAttribute];
+                }
+                else {
+                    console.log(dom.getAttribute('data-auto-bind') + " not found in collection DanhMuc")
+                }
+                clearInterval(interval);
+                if (options != null) {
+                    if (GLOBAL.CurrentUser && domAttribute === 'huyens') {
+                        options = options.filter(function (item) {
+                            return item.tinhId == GLOBAL.CurrentUser.Huyen.tinhId;
+                        }).map(function (item) {
+                            return {
+                                id: item[dom.getAttribute('data-value-field')],
+                                text: item[dom.getAttribute('data-display-field')]
+                            }
+                        });
+                    } else {
+                        options = options.map(function (item) {
+                            return {
+                                id: item[dom.getAttribute('data-value-field')],
+                                text: item[dom.getAttribute('data-display-field')]
+                            }
+                        });
+                    }
+                }
+                else {
+                    options = [];
+                }
+
+                var defaultDispay = dom.getAttribute('data-display-default');
+                if (defaultDispay != null && defaultDispay != "") {
+                    options.unshift({
+                        id: 0,
+                        text: defaultDispay
+                    })
+                }
+                //$(dom).select2('destroy');
+                $(dom).select2({
+                    dropdownCssClass: "dynamic-select2", allowClear: false, width: "100%",
+                    data: options
+                });
+
+                var defaultValue = dom.getAttribute("data-default-select");
+                if (GLOBAL.CurrentUser && (domAttribute === 'tinhs' || domAttribute === 'huyens' || domAttribute === 'xas') && dom.getAttribute("data-allow-default-select") === "1") {
+                    if (domAttribute === 'tinhs' && GLOBAL.CurrentUser.Tinh.tinhId > 0) {
+                        defaultValue = GLOBAL.CurrentUser.Tinh.tinhId;
+                    }
+                    else if (domAttribute === 'huyens' && GLOBAL.CurrentUser.Huyen.huyenId > 0) {
+                        defaultValue = GLOBAL.CurrentUser.Huyen.huyenId;
+                    }
+                }
+                if (defaultValue) {
+                    $(dom).val(defaultValue).trigger('change');
+                }
+                else {
+                    $(dom).trigger('change');
+                }
+            }
+            else {
+                countInterval++;
+
+                if (countInterval === maxInterval) {
+                    clearInterval(interval);
+
+                    console.log("DanhMuc colection could't load");
+                }
+            }
+        }, 100);
+
+    }
+}
+
+//chuyển mảng thành vòng lặp để lấy giá trị lần lượt hoặc ngẫu nhiên next, prev, cur và ran
+function loopArr(arr, options) {
+    var settings = $.extend({
+        loop: false
+    }, options);
+    var cur = 0;
+    arr.next = (function () { return (++cur >= this.length) ? (settings.loop ? this[0] : false) : this[cur]; });
+    arr.prev = (function () { return (--cur < 0) ? false : this[cur]; });
+    arr.cur = (function () { return this[cur]; });
+    arr.ran = (function () { return this[Math.floor(Math.random() * this.length)]; });
+    return arr;
+}
+
+//chuyển file upload sang chuỗi base64
+function convertFileUploadToBase64String(file, callback) {
+    var reader = new FileReader();
+    reader.onload = function () {
+        var strBase64 = this.result.split("base64,")[1];
+        if (callback) {
+            callback(strBase64);
+        }
+    }
+    if (file) {
+        reader.readAsDataURL(file);
+    }
+    else {
+        callback();
+    }
+}
 
 // #region Thư viện CRUD offline
 function checkLocalExist(collectionName) {
@@ -2600,8 +1044,8 @@ function getFromLocal(collectionName) {
 
 // #endregion
 
-//reset input trong form, ví dụ: ClearChildrenByType(document.getElementById("processChuSuDung"));
-function ClearChildrenByType(element) {
+//reset input trong form, ví dụ: clearChildrenByType(document.getElementById("processChuSuDung"));
+function clearChildrenByType(element) {
     for (var i = 0; i < element.childNodes.length; i++) {
         var e = element.childNodes[i];
         if (e.tagName) switch (e.tagName.toLowerCase()) {
@@ -2617,13 +1061,13 @@ function ClearChildrenByType(element) {
                 break;
             case "select": e.selectedIndex = 0; break;
             case "textarea": e.value = ""; break;
-            default: ClearChildrenByType(e);
+            default: clearChildrenByType(e);
         }
     }
 }
 
-//reset select2 trong form, ví dụ ClearChildrenSelect2ById("ddlQuanHuyen")
-function ClearChildrenSelect2ById(id) {
+//reset select2 trong form, ví dụ clearChildrenSelect2ById("ddlQuanHuyen")
+function clearChildrenSelect2ById(id) {
     $("#" + id).val("0").change();
 }
 
@@ -2647,14 +1091,14 @@ function centerModal() {
 }
 
 //đóng tất cả modal đang mở
-function CloseAllModal() {
+function closeAllModal() {
     $(".modal.in").each(function (index, value) {
         $(this).modal("hide");
     });
 }
 
-//Pulsate
-function Pulsate(id) {
+//pulsate
+function pulsate(id) {
     $(id).pulsate({
         color: "#bf1c56", // set the color of the pulse
         reach: 20,                              // how far the pulse goes in px
@@ -2684,7 +1128,7 @@ function loading(show) {
 }
 
 //Xử lý ajax error
-function OnError(xhr, errorType, exception) {
+function onError(xhr, errorType, exception) {
     loading(false);
     var responseText;
     var showText = "";
@@ -2698,11 +1142,11 @@ function OnError(xhr, errorType, exception) {
         responseText = xhr.responseText.replace(".7em", "13px").replace("<pre>", "").replace("</pre>", "");
         showText = responseText;
     }
-    VBDLIS.Msg.show({ msg: showText, icon: VBDLIS.Msg.UNSUCCESS, title: xhr.statusText, ajaxErr: true });
+    GLOBAL.showMessage.show({ msg: showText, icon: GLOBAL.showMessage.UNSUCCESS, title: xhr.statusText, ajaxErr: true });
 }
 
 //Chuyển đổi ngày tháng
-function DateTimeConvert(string, options) {
+function dateTimeConvert(string, options) {
     var settings = $.extend({
         time: false
     }, options);
@@ -2710,7 +1154,7 @@ function DateTimeConvert(string, options) {
     var daysname = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
     var monthsname = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
     if (Object.prototype.toString.call(string) === "[object String]" && !/[a-z]/.test(string.toLowerCase())) {
-        date = new Date(parseInt(string));
+        date = new Date(parseFloat(string));
     } else {
         date = new Date(string);
     }
@@ -2735,40 +1179,18 @@ function DateTimeConvert(string, options) {
     return result;
 }
 
-//convert val từ datepicker sang dạng mm/dd/yy
-//ví dụ GetDefaultDate("#txtNgayTimKiemTu");
-function GetDefaultDate(id) {
-    return $.datepicker.formatDate("dd/mm/yy", $(id).datepicker("getDate"));
-}
-
-//Ẩn hiện table nếu tìm kiếm bên ngoài
-//ví dụ ToggleSearchResult(CustomSearch, settings.aoData.length);
-function ToggleSearchResult(customSearch, result) {
-    if (customSearch) {
-        if (result < 1) {
-            $("#dvKetQuaTimKiemEmpty").css({ "display": "block" });
-            $("#dvKetQuaTimKiem").css({ "visibility": "hidden" });
-        }
-        else {
-            $("#dvKetQuaTimKiemEmpty").css({ "display": "none" });
-            $("#dvKetQuaTimKiem").css({ "visibility": "visible" });
-        }
-    }
-    CustomSearch = false;
-}
-
 //Set content tinymce
-function SetContentTinymce(control, content) {
+function setContentTinymce(control, content) {
     tinymce.get(control).setContent(content);
 }
 
 //Get content tinymce
-function GetContentTinymce(control) {
+function getContentTinymce(control) {
     return tinymce.get(control).getContent({ format: "raw" });
 }
 
-//HTML string sang javascript var, ví dụ DomToVar(document.getElementById("data_table").innerHTML); document.body.innerHTML += encoded; alert(unescape(encoded));
-function DomToVar(html) {
+//HTML string sang javascript var, ví dụ domToVar(document.getElementById("data_table").innerHTML); document.body.innerHTML += encoded; alert(unescape(encoded));
+function domToVar(html) {
     encodedHtml = escape(html);
     encodedHtml = encodedHtml.replace(/\//g, "%2F");
     encodedHtml = encodedHtml.replace(/\?/g, "%3F");
@@ -2820,12 +1242,12 @@ function isObjectEqual(a, b) {
 }
 
 // Convert array to object
-function ConvertToObj(array) {
+function convertToObj(array) {
     var thisEleObj = new Object();
     if (typeof array === "object") {
         for (var i in array) {
             var thisEle;
-            thisEle = ConvertToObj(array[i]);
+            thisEle = convertToObj(array[i]);
             if (!IsEmpty(thisEle)) {
                 thisEleObj[i] = thisEle;
             }
@@ -2840,7 +1262,7 @@ function ConvertToObj(array) {
 }
 
 //chuyển tiếng việt có dấu thành không dấu
-function ConvertToEn(inputString, options) {
+function convertToEn(inputString, options) {
     var settings = $.extend({
         lower: false,
         removespaces: false
@@ -2875,7 +1297,7 @@ function ConvertToEn(inputString, options) {
 }
 
 //Check string có phải GUID hay không
-function IsGuid(stringToTest) {
+function isGuid(stringToTest) {
     if (stringToTest[0] === "{") {
         stringToTest = stringToTest.substring(1, stringToTest.length - 1);
     }
@@ -2890,7 +1312,7 @@ function toggle(className, obj) {
     else $(className).hide();
 }
 
-//hàm làm tròn
+//làm tròn
 function round(value, precision, isRound) {
     var multiplier = Math.pow(10, precision || 0)
     if (isRound)
@@ -2931,7 +1353,7 @@ function isObjectContainEmptyArray(obj) {
     return checkEmpty;
 }
 
-//hàm cấu hình mặc định hiện popover cho form validation
+//cấu hình mặc định hiện popover cho form validation
 function formValidationErrorPlacement(error, element) {
     var _popover;
     _popover = $(element).popover({
@@ -2946,7 +1368,7 @@ function formValidationErrorPlacement(error, element) {
     return setTimeout(function () { $(element).popover("hide"); }, 2000);
 }
 
-//hàm kết xuất dữ liệu biến động để đưa xuống server
+//kết xuất dữ liệu biến động để đưa xuống server
 function ketXuatDuLieuBienDong(bienDongType, bienDongStep, data) {
     var bienDongTypeNum;
     switch (bienDongType) {
@@ -3007,6 +1429,9 @@ function ketXuatDuLieuBienDong(bienDongType, bienDongStep, data) {
         case 'HanCheThuaLienKe':
             bienDongTypeNum = 18;
             break;
+        case 'TachThuaChuyenQuyen':
+            bienDongTypeNum = 19;
+            break;
     }
     if (!VBDLIS.Global.duLieuBienDong[bienDongType]) {
         VBDLIS.Global.duLieuBienDong[bienDongType] = [];
@@ -3028,38 +1453,38 @@ function ketXuatDuLieuBienDong(bienDongType, bienDongStep, data) {
 }
 
 function duLieuBienDongCoThayDoi(bienDongType, bienDongStep, data) {
-    if (VBDLIS.Global.duLieuBienDong[bienDongType] && VBDLIS.Global.duLieuBienDong[bienDongType].length > 0 && VBDLIS.Global.duLieuBienDong[bienDongType][bienDongStep - 1] && isObjectEqual(data, JSON.parse(VBDLIS.Global.duLieuBienDong[bienDongType][bienDongStep - 1].DuLieu))) {
+    if (VBDLIS.Global.duLieuBienDong[bienDongType] && VBDLIS.Global.duLieuBienDong[bienDongType].length > 0 && VBDLIS.Global.duLieuBienDong[bienDongType][bienDongStep - 1] && isJson(VBDLIS.Global.duLieuBienDong[bienDongType][bienDongStep - 1].DuLieu) && isObjectEqual(data, JSON.parse(VBDLIS.Global.duLieuBienDong[bienDongType][bienDongStep - 1].DuLieu))) {
         return false;
     } else {
         return true;
     }
 }
 
-//hàm xử lý kết quả ajax trả về
-function processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback, getScripts) {
+//xử lý kết quả ajax trả về
+function processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback, options) {
     var data;
     switch (textStatus) {
         case 'success':
-            VBDLIS.Global.isAjaxFailed = false;
-            if (getScripts) {
-                switch (getScripts.requestType) {
+            GLOBAL.isAjaxFailed = false;
+            if (options) {
+                switch (options.requestType) {
                     case 'script':
-                        VBDLIS.Global.waitAll++;
-                        if (typeof VBDLIS.VModule.VModuleJsLoader[getScripts.fnLoad] === 'function') {
-                            VBDLIS.VModule.VModuleJsLoader[getScripts.fnLoad]($(getScripts.script));
+                        GLOBAL.waitAll++;
+                        if (typeof VBDLIS.VModule.VModuleJsLoader[options.fnLoad] === 'function') {
+                            VBDLIS.VModule.VModuleJsLoader[options.fnLoad]($(options.script));
                         }
                         break;
                     case 'form':
                         var dom = $(dataORjqXHR);
-                        if (getScripts.vModule && getScripts.vModule.VModuleId) {
-                            VBDLIS.Global.BindScriptsDynamic(dom, function () {
-                                $("#mdlRemoteFormBody-" + getScripts.vModule.VModuleId).html(dom);
+                        if (options.vModule && options.vModule.VModuleId) {
+                            bindScriptsDynamic(dom, function () {
+                                $("#mdlRemoteFormBody-" + options.vModule.VModuleId).html(dom);
                             });
-                            $("#mdlRemoteFormBody-" + getScripts.vModule.VModuleId).find(".modal").appendTo($("#dvModalContainer"));
+                            $("#mdlRemoteFormBody-" + options.vModule.VModuleId).find(".modal").appendTo($("#dvModalContainer"));
                             dom.find(".modal").appendTo($("#dvModalContainer"));
                         } else {
                             $("#mdlRemoteFormBody").html(dom);
-                            VBDLIS.Global.BindScriptsDynamic(dom, function () {
+                            bindScriptsDynamic(dom, function () {
                                 $("#mdlRemoteForm").modal('show');
                             });
                             $("#mdlRemoteFormBody").find(".modal").appendTo($("#dvModalContainer"));
@@ -3067,35 +1492,45 @@ function processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback
                         }
                         break;
                     case 'danhmuc':
-                        if (dataORjqXHR.isSuccess) {
-                            if (getScripts.dataVersion !== getScripts.localVersion) {
+                        if (dataORjqXHR && dataORjqXHR.success && dataORjqXHR.success === true) {
+                            if (dataORjqXHR.version !== options.localVersion) {
                                 saveToLocal('DanhMuc', dataORjqXHR);
                             }
                         } else {
-                            VBDLIS.Msg.show({ msg: "Không lấy được danh mục. " + dataORjqXHR.Value, icon: VBDLIS.Msg.UNSUCCESS });
+                            GLOBAL.showMessage.show({ msg: "Không lấy được danh mục. " + dataORjqXHR.value, icon: GLOBAL.showMessage.UNSUCCESS });
                         }
                         break;
                 }
             } else {
-                data = VBDLIS.Global.TryParseDateInObject(dataORjqXHR);
+                data = tryParseDateInObject(dataORjqXHR);
             }
             break;
         case 'error':
         case 'timeout':
         case 'abort':
-        case 'parsererror':
         case null:
-            VBDLIS.Global.isAjaxFailed = true;
-            OnError(dataORjqXHR, textStatus, jqXHRORerrorThrown);
+            GLOBAL.isAjaxFailed = true;
+            onError(dataORjqXHR, textStatus, jqXHRORerrorThrown);
+            break;
+        case 'parsererror':
+            if (dataORjqXHR.responseText.includes('Đăng nhập')) {
+                $('#loginAgainModal .login-form .erormess').html("");
+                $('#loginAgainModal input').val("");
+                $('#loginAgainModal').modal('show');
+                $('.modal-backdrop.in').css({ 'background-image': 'url("' + GLOBAL.linkRoot + "/Assets/css/images/bg-login.png" + '")', 'opacity': 'inherit' });
+            } else {
+                onError(dataORjqXHR, textStatus, jqXHRORerrorThrown);
+            }
+            GLOBAL.isAjaxFailed = true;
             break;
         default:
-            VBDLIS.Global.isAjaxFailed = true;
-            OnError(dataORjqXHR, textStatus, jqXHRORerrorThrown);
+            GLOBAL.isAjaxFailed = true;
+            onError(dataORjqXHR, textStatus, jqXHRORerrorThrown);
     }
-    if (getScripts) {
-        switch (getScripts.requestType) {
+    if (options) {
+        switch (options.requestType) {
             case 'script':
-                if (VBDLIS.Global.waitAll === getScripts.scripts.length && typeof callback === 'function') {
+                if (GLOBAL.waitAll === options.scripts.length && typeof callback === 'function') {
                     callback();
                 }
                 break;
@@ -3107,41 +1542,56 @@ function processAjaxResult(dataORjqXHR, textStatus, jqXHRORerrorThrown, callback
                 break;
         }
     } else {
-        if (typeof callback === 'function') {
-            callback(data);
+        if (dataORjqXHR && dataORjqXHR.success && dataORjqXHR.success === true) {
+            if (typeof callback === 'function') {
+                callback(data);
+            }
+        } else {
+            if (dataORjqXHR && dataORjqXHR.responseText && dataORjqXHR.responseText.includes('Đăng nhập')) {
+            } else {
+                GLOBAL.showMessage.show({ msg: "Xử lý thất bại. " + (dataORjqXHR.Error ? dataORjqXHR.Error : dataORjqXHR.message), icon: GLOBAL.showMessage.UNSUCCESS });
+            }
+            GLOBAL.isAjaxFailed = true;
         }
     }
 }
 
-//hàm chuyển chuỗi ngày định dd/mm/yyyy sang ISO-8601
+//chuyển chuỗi ngày định dd/mm/yyyy sang ISO-8601
 function convertDateToISO8601(dateString) {
     if (dateString) {
         darr = dateString.split("/");
-        var dobj = new Date(parseInt(darr[2]), parseInt(darr[1]) - 1, parseInt(darr[0]));
+        var dobj = new Date(parseFloat(darr[2]), parseFloat(darr[1]) - 1, parseFloat(darr[0]));
         return dobj.toISOString();
     } else {
         return null;
     }
 }
 
-//hàm gộp 2 mảng thành một
-function merge(a, b) {
-    var c = {};
-    for (var idx in a) {
-        c[idx] = a[idx];
-    }
-    for (var idx in b) {
-        c[idx] = $.isNumeric(b[idx]) ? parseFloat(b[idx]) : b[idx];
-    }
-    return c;
+//gộp nhiều mảng thành một
+function mergeArray(...args) {
+    return [].concat(...args);
 }
 
-//hàm clone object
+//gộp nhiều object thành một
+function mergeObject(...args) {
+    return args.reduce(function (currentArg, nextArg) {
+        var mergedObj = {};
+        for (var key in currentArg) {
+            mergedObj[key] = currentArg[key];
+        }
+        for (var key in nextArg) {
+            mergedObj[key] = $.isNumeric(nextArg[key]) ? parseFloat(nextArg[key]) : nextArg[key];
+        }
+        return mergedObj;
+    });
+}
+
+//clone object
 function cloneObject(obj) {
     return $.extend(true, {}, obj);
 }
 
-//hàm khóa các element
+//khóa các element
 function blockElements(parentElement, listElements) {
     if (listElements) {
         $.each(listElements, function (indexInArray, valueOfElement) {
@@ -3160,14 +1610,14 @@ function blockElements(parentElement, listElements) {
     }
 }
 
-//hàm mở khóa các element
+//mở khóa các element
 function unblockElements(parentElement, listElements) {
     $.each(listElements, function (indexInArray, valueOfElement) {
         parentElement.find("[name='" + valueOfElement + "']").attr('disabled', false);
     });
 }
 
-//hàm kiểm tra chuỗi JSON hợp lệ
+//kiểm tra chuỗi JSON hợp lệ
 function isJson(item) {
     item = typeof item !== "string"
         ? JSON.stringify(item)
@@ -3183,122 +1633,66 @@ function isJson(item) {
     return false;
 }
 
-// #endregion
+//thêm số 0 vào chuỗi number
+function addZeroToNum(str, max) {
+    str = str.toString();
+    return str.length < max ? addZeroToNum("0" + str, max) : str;
+}
 
-// #region  self invoked anonymous functions
-
-var InitDataSelect2 = function (dom) {
-
-    //select2 select2-autobind Config:
-    //data-auto-bind: Name of property in collection DanhMuc
-    //data-value-field: Value field
-    //data-display-field: Display field
-    //data-display-default: --Chọn abc---
-    //data-default-select: default select
-
-
-    var me = this;
-    var maxInterval = 200; //20s
-    var countInterval = 0;
-
-    if (dom && dom.getAttribute('data-auto-bind')) {
-        var interval = setInterval(function () { //<= set tạm vì không biết khi nào load xong DanhMuc
-            var danhMucs = localDB.getCollection("DanhMuc");
-            var options;
-            if (danhMucs != null) {
-                if (danhMucs.data && danhMucs.data.length > 0 && danhMucs.data[0] && danhMucs.data[0].Value) {
-                    options = danhMucs.data[0].Value[dom.getAttribute('data-auto-bind')];
-                }
-                else {
-                    console.log(dom.getAttribute('data-auto-bind') + " not found in collection DanhMuc")
-                }
-
-                clearInterval(interval);
-
-                if (options != null) {
-                    options = options.map(function (item) {
-                        return {
-                            id: item[dom.getAttribute('data-value-field')],
-                            text: item[dom.getAttribute('data-display-field')]
-                        }
-                    });
-                }
-                else {
-                    options = [];
-                }
-
-                var defaultDispay = dom.getAttribute('data-display-default');
-                if (defaultDispay != null && defaultDispay != "") {
-                    options.unshift({
-                        id: 0,
-                        text: defaultDispay
-                    })
-                }
-
-
-                //$(dom).select2('destroy');
-                $(dom).select2({
-                    dropdownCssClass: "dynamic-select2", allowClear: false, width: "100%",
-                    data: options
-                });
-
-                var defaultValue = dom.getAttribute("data-default-select");
-
-                if (defaultValue) {
-                    $(dom).val(defaultValue).trigger('change');
-                }
-            }
-            else {
-                countInterval++;
-
-                if (countInterval === maxInterval) {
-                    clearInterval(interval);
-
-                    console.log("DanhMuc colection could't load");
-                }
-            }
-        }, 100);
-
+//xử lý collapse
+function switchBindButton(element, mode) {
+    var currentBtnChiTiet = element.find('[id^="btnTraCuu"]');
+    var currentPanel = element.closest('.panel');
+    if (element.prop('id').startsWith('dvTraCuu')) {
+        currentBtnChiTiet[(mode === 'show' ? 'add' : 'remove') + 'Class']('BindButton');
+        if (currentPanel.length > 0) {
+            $('[id^="btnTraCuu"]').filter(function () {
+                return element.closest(currentPanel).length === 1;
+            }).not(currentBtnChiTiet)[(mode === 'show' ? 'remove' : 'add') + 'Class']('BindButton');
+        } else {
+            var currentDv = element;
+            $('[id^="btnTraCuu"]').filter(function () {
+                return element.closest(currentDv).length === 0;
+            })[(mode === 'show' ? 'remove' : 'add') + 'Class']('BindButton');
+        }
     }
 }
 
-//cấu hình modal
-//modal.[add,edit,remove]("modalId",name);
-//ví dụ modal.add("mdlChiTietCaNhan", "cá nhân");
-var modal = function () {
-    return {
-        add: function (id, text) {
-            ResetChildrenByType(document.getElementById(id));
-            ResetChildrenSelect2ById(id);
-            $("#" + id + "").removeClass().addClass("modal Add");
-            $("#" + id + "").find(".panel-body > div.row > div:first-child").show();
-            $("#" + id + "").find(".panel-body > div.row > div:last-child").hide();
-            $("#" + id + "").find(".panel").removeClass().addClass("panel panel-primary");
-            $("#" + id + "").find(".panel-title > span").text("Thêm " + text + "");
-            $("#" + id + "").find(".panel-footer .pull-right > a:first-child").html("<i class='fa fa-plus'></i> Lưu").removeClass().addClass("btn btn-primary hover-effect BindButton").show();
-            $("#" + id + "").find(".panel-footer .pull-right > a:nth-child(2)").hide();
-        },
-        edit: function (id, text) {
-            $("#" + id + "").removeClass().addClass("modal Edit");
-            $("#" + id + "").find(".panel-body > div.row > div:first-child").show();
-            $("#" + id + "").find(".panel-body > div.row > div:last-child").hide();
-            $("#" + id + "").find(".panel").removeClass().addClass("panel panel-success");
-            $("#" + id + "").find(".panel-title > span").text("Sửa " + text + "");
-            $("#" + id + "").find(".panel-footer .pull-right > a:first-child").html("<i class='fa fa-edit'></i> Cập nhật").removeClass().addClass("btn btn-success hover-effect BindButton").show();
-            $("#" + id + "").find(".panel-footer .pull-right > a:nth-child(2)").hide();
-        },
-        remove: function (id, text) {
-            $("#" + id + "").removeClass().addClass("modal Remove");
-            $("#" + id + "").find(".panel-body > div.row > div:first-child").hide();
-            $("#" + id + "").find(".panel-body > div.row > div:last-child").html("<h4><b>Bạn chắc chắn muốn xóa " + text + " này?</b></h4>").show();
-            $("#" + id + "").find(".panel").removeClass().addClass("panel panel-danger");
-            $("#" + id + "").find(".panel-title > span").text("Xóa " + text + "");
-            $("#" + id + "").find(".panel-footer .pull-right > a:first-child").hide();
-            $("#" + id + "").find(".panel-footer .pull-right > a:nth-child(2)").html("<i class='fa fa-trash-o'></i> Đồng ý").removeClass().addClass("btn btn-danger hover-effect BindButton").show();
-        }
-    };
-}();
+//lấy ngày(giờ) hiện tại
+function getCurrentDate(options = { time: false }) {
+    var now = new Date();
+    var year = now.getFullYear();
+    var month = now.getMonth() + 1;
+    var day = now.getDate();
+    var hour = now.getHours();
+    var minute = now.getMinutes();
+    var second = now.getSeconds();
+    if (month.toString().length == 1) {
+        var month = '0' + month;
+    }
+    if (day.toString().length == 1) {
+        var day = '0' + day;
+    }
+    if (hour.toString().length == 1) {
+        var hour = '0' + hour;
+    }
+    if (minute.toString().length == 1) {
+        var minute = '0' + minute;
+    }
+    if (second.toString().length == 1) {
+        var second = '0' + second;
+    }
+    var dateTime;
+    if (options.time) {
+        dateTime = day + '/' + month + '/' + year + ' ' + hour + ':' + minute + ':' + second;
+    } else {
+        dateTime = day + '/' + month + '/' + year;
+    }
+    return dateTime;
+}
+// #endregion
 
+// #region  self invoked anonymous functions
 //cấu hình alertify
 //alertify.[default,info,warning,error,success]("[tl,tr,tc,bl,br]", message)
 var alertify = function () {
@@ -3347,52 +1741,6 @@ var alertify = function () {
             messageHeight: "auto"
         }).$el.css("word-wrap", "break-word");
     }
-    function AlertifyConfirm(mes, yescallback, nocallback) {
-        Lobibox.confirm({
-            //iconClass: false,
-            title: "Xác nhận",
-            msg: mes,
-            callback: function ($this, type, ev) {
-                if (type === "yes") {
-                    if (typeof yescallback === "function") {
-                        yescallback.call(this);
-                    }
-                } else if (type === "no") {
-                    if (!nocallback) {
-                        return false;
-                    } else {
-                        if (typeof nocallback === "function") {
-                            nocallback.call(this);
-                        }
-                    }
-                }
-            }
-        });
-    }
-    function AlertifyAlert(mes, options) {
-        var settings = $.extend({}, options);
-        var buttonsList = {};
-        var buttonStyle = loopArr(["primary", "warning", "danger", "default", "success", "info"], { loop: true });
-        $.each(settings, function (index, value) {
-            var indexNew = ConvertToEn(index, { lower: true, removespaces: true });
-            //if (index === Object.keys(settings)[Object.keys(settings).length - 1])
-            buttonsList[indexNew] = { "class": "btn btn-" + buttonStyle.next(), closeOnClick: true, text: index };
-        });
-        Lobibox.alert("info", {
-            msg: mes,
-            title: "Thông báo",
-            //buttons: ['ok', 'cancel', 'yes', 'no'],
-            //Or more powerfull way
-            buttons: buttonsList,
-            callback: function (lobibox, type) {
-                for (key in settings) {
-                    if (type === ConvertToEn(key, { lower: true, removespaces: true })) {
-                        settings[key]();
-                    }
-                }
-            }
-        });
-    }
     return {
         default: function (pos, mes) {
             AlertifyNotify("default", pos, mes);
@@ -3408,33 +1756,9 @@ var alertify = function () {
         },
         success: function (pos, mes) {
             AlertifyNotify("success", pos, mes);
-        },
-        confirm: function (mes, yescallback, nocallback) {
-            AlertifyConfirm(mes, yescallback, nocallback);
-        },
-        alert: function (mes, options) {
-            AlertifyAlert(mes, options);
         }
     };
 }();
-
-//chuyển mảng thành vòng lặp để lấy giá trị lần lượt hoặc ngẫu nhiên next, prev, cur và ran
-var loopArr = function (arr, options) {
-    var settings = $.extend({
-        loop: false
-    }, options);
-    var cur = 0;
-    arr.next = (function () { return (++cur >= this.length) ? (settings.loop ? this[0] : false) : this[cur]; });
-    arr.prev = (function () { return (--cur < 0) ? false : this[cur]; });
-    arr.cur = (function () { return this[cur]; });
-    arr.ran = (function () { return this[Math.floor(Math.random() * this.length)]; });
-    return arr;
-};
-//hàm thêm số 0 vào chuỗi number
-function AddZeroToNum(str, max) {
-    str = str.toString();
-    return str.length < max ? AddZeroToNum("0" + str, max) : str;
-}
 // #endregion
 
 // #region self invoked anonymous functions with a parameter called "$"
@@ -3484,92 +1808,6 @@ function AddZeroToNum(str, max) {
         this.find(".x-mask").remove();
     };
 
-    $.fn.formToJson = function (options, decorator) {
-        var settings = $.extend({
-            stringify: false
-        }, options);
-        var obj = {},
-            arr = this.serializeArray({ checkboxesAsBools: true }),
-            that;
-        $.each(arr, function () {
-            that = this;
-            if ($.isFunction(decorator)) {
-                that = decorator(that.name, that.value);
-            }
-            if (obj[this.name] !== undefined) {
-                if (!obj[that.name].push) {
-                    obj[that.name] = [obj[that.name]];
-                }
-                obj[that.name].push(that.value || "");
-            } else {
-                obj[that.name] = that.value || "";
-            }
-        });
-        if (settings.stringify) {
-            return JSON.stringify(obj);
-        } else {
-            return obj;
-        }
-    };
-
-    //Chuyển đổi Form thành array (hỗ trợ hàm formToJson)
-    $.fn.serializeArray = function (options) {
-        var o = $.extend({
-            checkboxesAsBools: false
-        }, options || {});
-        var rselectTextarea = /select|textarea/i;
-        var rinput = /text|file|password|search/i;
-        return this.map(function () {
-            return this.elements ? $.makeArray(this.elements) : this;
-        })
-            .filter(function () {
-                return this.name && !this.disabled &&
-                    (this.checked
-                        || (o.checkboxesAsBools && this.type === "checkbox")
-                        || rselectTextarea.test(this.nodeName)
-                        || rinput.test(this.type));
-            })
-            .map(function (i, elem) {
-                var val = $(this).val();
-                return val === null ?
-                    null :
-                    $.isArray(val) ?
-                        $.map(val, function (val, i) {
-                            return { name: elem.name, value: val };
-                        }) :
-                        {
-                            name: elem.name,
-                            value: (o.checkboxesAsBools && this.type === "checkbox") ?
-                                (this.checked ? "true" : "false") :
-                                val
-                        };
-            }).get();
-    };
-
-    //Chuyển đổi Json gán lên Form
-    $.fn.jsonToForm = function (data) {
-        if (typeof data === "string") {
-            data = JSON.parse(data);
-        }
-        $.each(this.find("*[name]"), function () {
-            var inputType = $(this).attr("type"),
-                dataValue = data[$(this).attr("name")];
-            if (inputType === "radio" || inputType === "checkbox") {
-                if ($.isArray(dataValue)) {
-                    $(this).prop("checked", $.inArray($(this).val(), dataValue) > -1);
-                }
-                else {
-                    $(this).prop("checked", dataValue === "true");
-                }
-            } else if (inputType === "file") {
-                $(this).siblings(".fileinput-filename").text(dataValue);
-                $(this).siblings(".fileinput-filename").css({ "display": "block" });
-            } else {
-                $(this).val(dataValue);
-            }
-        });
-    };
-
 })($);
 // #endregion
 
@@ -3579,15 +1817,12 @@ function AddZeroToNum(str, max) {
 $(document).on("keypress", function (event) {
     if (event.keyCode === 13) {
         if ($(".modal.in").length === 0) {
-            if ($("#dvMain").find("ul.nav-tabs").length === 0) {
-                $("#dvMain").find(".BindButton").click();
+            if ($(document).find("ul.nav-tabs").length === 0) {
+                $(document).find(".BindButton").click();
             }
             else {
-                $("#dvMain").find(".tab-pane.active").find(".BindButton").click();
+                $(document).find(".tab-pane.active").find(".BindButton").click();
             }
-        }
-        else {
-            //nothing
         }
     }
 });
@@ -3599,28 +1834,35 @@ $("a[data-toggle='tab']").on("shown.bs.tab", function (e) {
 
 //bind window events
 window.onerror = function (msg, url, lineNo, columnNo, error) {
-    //loading(false);
-    //if (typeof (msg) !== 'object') {
-    //    var string = msg ? msg.toLowerCase() : msg;
-    //    var substring = "script error";
-    //    if (string.indexOf(substring) > -1) {
-    //        alert('Lỗi chưa xác định: Mở cửa sổ console để xem chi tiết');
-    //    } else {
-    //        var message = [
-    //            'Nội dung lỗi: ' + msg,
-    //            'Tập tin lỗi: ' + url,
-    //            'Dòng: ' + lineNo
-    //            //'Cột: ' + columnNo
-    //        ];
-    //        JSON.stringify(error) !== "{}" && message.push({ 'Đối tượng lỗi': JSON.stringify(error) });
-    //        alert(message.join(' \n ') + '\nVui lòng mở cửa sổ console để xem chi tiết.');
-    //    }
-    //}
-    //else {
-    //    alert('Lỗi chưa xác định: Mở cửa sổ console để xem chi tiết');
-    //}
+    loading(false);
+    if (typeof (msg) !== 'object') {
+        var string = msg ? msg.toLowerCase() : msg;
+        var substring = "script error";
+        if (string.indexOf(substring) > -1) {
+            alert('Lỗi chưa xác định: Mở cửa sổ console để xem chi tiết');
+        } else {
+            var message = [
+                'Nội dung lỗi: ' + msg,
+                'Tập tin lỗi: ' + url,
+                'Dòng: ' + lineNo
+                //'Cột: ' + columnNo
+            ];
+            JSON.stringify(error) !== "{}" && message.push({ 'Đối tượng lỗi': JSON.stringify(error) });
+            alert(message.join(' \n ') + '\nVui lòng mở cửa sổ console để xem chi tiết.');
+        }
+    }
+    else {
+        alert('Lỗi chưa xác định: Mở cửa sổ console để xem chi tiết');
+    }
+    return false;
+    //var errorbox = document.createElement('div');
+    //errorbox.className = 'fancyerror';
+    //errorbox.innerHTML = 'JS: <span class="errmsg"' +
+    //    msg.replace('<', '&lt;').replace('>', '&gt;') +
+    //    '</span><br>line number: ' + lineNo +
+    //    '<br>located: ' + url;
+    //document.body.appendChild(errorbox);
     //return false;
-    return true;
 };
 
 $(document).ajaxStart(function () {
